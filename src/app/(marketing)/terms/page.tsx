@@ -6,7 +6,8 @@ export default function TermsPage() {
       <h1 className="text-3xl font-semibold">Terms</h1>
       <p className="mt-6 leading-7 text-muted-foreground">{DISCLAIMER_TEXT}</p>
       <p className="mt-4 leading-7 text-muted-foreground">
-        Users are responsible for verifying all generated data, exported files and reported amounts before using them with any tax authority or professional advisor.
+        Users are responsible for verifying all generated data, exported files and
+        reported amounts before using them with any tax authority or professional advisor.
       </p>
     </section>
   );

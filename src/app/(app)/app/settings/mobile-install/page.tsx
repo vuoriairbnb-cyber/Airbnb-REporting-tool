@@ -3,7 +3,10 @@ import { PageHeader } from "@/components/layout/PageHeader";
 export default function MobileInstallPage() {
   return (
     <>
-      <PageHeader title="Add to Home Screen" description="Install the web app on your phone for faster receipt capture." />
+      <PageHeader
+        title="Add to Home Screen"
+        description="Install the web app on your phone for faster receipt capture."
+      />
       <div className="grid gap-4 md:grid-cols-2">
         <section className="rounded-lg border bg-background p-4">
           <h2 className="font-semibold">iPhone</h2>

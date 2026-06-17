@@ -862,7 +862,7 @@ Calculation:
 
 ```ts
 function calculateCandidateReportableAmount(total: number, percentage: number): number {
-  return roundCurrency(total * percentage / 100);
+  return roundCurrency((total * percentage) / 100);
 }
 ```
 

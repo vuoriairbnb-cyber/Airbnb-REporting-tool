@@ -23,7 +23,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-muted/30">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r bg-background p-4 md:block">
-        <Link href="/app/dashboard" className="flex items-center gap-2 text-lg font-semibold">
+        <Link
+          href="/app/dashboard"
+          className="flex items-center gap-2 text-lg font-semibold"
+        >
           <BarChart3 className="h-5 w-5 text-primary" />
           HostReport
         </Link>
@@ -50,7 +53,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link
             key={item.href}
             href={item.href}
-            className={cn("flex h-16 flex-col items-center justify-center gap-1 text-[11px] text-muted-foreground")}
+            className={cn(
+              "flex h-16 flex-col items-center justify-center gap-1 text-[11px] text-muted-foreground"
+            )}
           >
             <item.icon className="h-5 w-5" />
             {item.label}

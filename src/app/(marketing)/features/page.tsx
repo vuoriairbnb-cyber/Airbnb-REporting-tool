@@ -20,7 +20,8 @@ export default function FeaturesPage() {
               <CardTitle>{feature}</CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
-              Built for hosts who need organized preparation data without turning the product into bookkeeping software.
+              Built for hosts who need organized preparation data without turning the
+              product into bookkeeping software.
             </CardContent>
           </Card>
         ))}

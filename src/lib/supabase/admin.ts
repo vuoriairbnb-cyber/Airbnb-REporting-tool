@@ -7,14 +7,10 @@ export function createAdminClient() {
     throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for admin operations.");
   }
 
-  return createClient<Database>(
-    getSupabaseUrl(),
-    process.env.SUPABASE_SERVICE_ROLE_KEY,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
+  return createClient<Database>(getSupabaseUrl(), process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
     }
-  );
+  });
 }

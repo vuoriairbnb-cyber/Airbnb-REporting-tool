@@ -16,7 +16,10 @@ export default function SignupPage() {
             <Link href="/app/dashboard">Accept and preview app</Link>
           </Button>
           <p className="text-center text-sm text-muted-foreground">
-            Already registered? <Link href="/login" className="text-primary">Log in</Link>
+            Already registered?{" "}
+            <Link href="/login" className="text-primary">
+              Log in
+            </Link>
           </p>
         </CardContent>
       </Card>

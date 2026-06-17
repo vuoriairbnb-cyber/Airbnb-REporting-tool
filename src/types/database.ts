@@ -13,7 +13,13 @@ export type Database = {
     Functions: Record<string, never>;
     Enums: {
       expense_status: "draft" | "needs_review" | "reviewed" | "excluded" | "archived";
-      receipt_status: "uploaded" | "processing" | "needs_review" | "reviewed" | "failed" | "archived";
+      receipt_status:
+        | "uploaded"
+        | "processing"
+        | "needs_review"
+        | "reviewed"
+        | "failed"
+        | "archived";
       source_document_status: "uploaded" | "processing" | "processed" | "failed";
       report_status: "pending" | "processing" | "ready" | "failed";
       report_type:

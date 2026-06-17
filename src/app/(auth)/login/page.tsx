@@ -17,7 +17,10 @@ export default function LoginPage() {
             <Link href="/app/dashboard">Continue to app preview</Link>
           </Button>
           <p className="text-center text-sm text-muted-foreground">
-            No account? <Link href="/signup" className="text-primary">Sign up</Link>
+            No account?{" "}
+            <Link href="/signup" className="text-primary">
+              Sign up
+            </Link>
           </p>
         </CardContent>
       </Card>

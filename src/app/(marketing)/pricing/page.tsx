@@ -3,9 +3,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const plans = [
-  { name: "Free Trial", price: "0 EUR", detail: "1 property, limited scans, basic CSV preview" },
-  { name: "Starter", price: "19 EUR", detail: "1-2 properties, receipt scans, CSV and PDF reports" },
-  { name: "Pro", price: "39 EUR", detail: "More properties, accurate scans, ZIP exports and custom categories" }
+  {
+    name: "Free Trial",
+    price: "0 EUR",
+    detail: "1 property, limited scans, basic CSV preview"
+  },
+  {
+    name: "Starter",
+    price: "19 EUR",
+    detail: "1-2 properties, receipt scans, CSV and PDF reports"
+  },
+  {
+    name: "Pro",
+    price: "39 EUR",
+    detail: "More properties, accurate scans, ZIP exports and custom categories"
+  }
 ];
 
 export default function PricingPage() {

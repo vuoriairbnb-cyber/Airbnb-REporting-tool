@@ -6,7 +6,10 @@ import { DISCLAIMER_TEXT } from "@/lib/constants/disclaimer";
 export default function ReportsPage() {
   return (
     <>
-      <PageHeader title="Reports" description="Generate CSV, PDF and ZIP files for tax-filing preparation." />
+      <PageHeader
+        title="Reports"
+        description="Generate CSV, PDF and ZIP files for tax-filing preparation."
+      />
       <div className="mb-5 rounded-lg border bg-background p-4 text-sm text-muted-foreground">
         {DISCLAIMER_TEXT}
       </div>
