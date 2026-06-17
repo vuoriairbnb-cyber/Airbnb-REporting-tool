@@ -1,0 +1,17 @@
+{
+  "name": "HostReport",
+  "short_name": "HostReport",
+  "description": "Airbnb income, expenses and receipts organized for tax season.",
+  "start_url": "/app/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1e7169",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
