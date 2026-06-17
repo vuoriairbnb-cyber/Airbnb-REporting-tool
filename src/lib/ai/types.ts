@@ -1,5 +1,7 @@
-export type AiScanMode = "fast" | "accurate";
-export type AiProvider = "mock" | "openai" | "anthropic";
+export type ScanMode = "fast" | "accurate";
+export type AiScanMode = ScanMode;
+export type AiProviderName = "mock" | "openai" | "anthropic";
+export type AiProvider = AiProviderName;
 
 export type ParsedReceiptItem = {
   description: string;

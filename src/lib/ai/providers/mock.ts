@@ -1,23 +1,69 @@
 import type { ReceiptParser } from "@/lib/ai/types";
 
-export const parseReceiptWithMock: ReceiptParser = async (input) => ({
-  provider: "mock",
-  model: "mock-receipt-parser-v1",
-  scanMode: input.scanMode,
-  receipt: {
-    date: null,
-    vendor: input.fileName?.split(".")[0] ?? "Receipt vendor",
-    total_amount: null,
-    tax_amount: null,
-    currency: input.currencyHint ?? null,
-    payment_method: null,
-    last4: null,
-    suggested_category: input.categoryHints[0] ?? null,
-    items: [],
-    confidence: 0,
-    warnings: ["Mock parser returned placeholder data. User review is required."]
-  },
-  rawResponse: {
-    mock: true
-  }
-});
+function chooseVendor(fileName?: string) {
+  const lowerName = fileName?.toLowerCase() ?? "";
+
+  if (lowerName.includes("clean")) return "Nordic Cleaning Co.";
+  if (lowerName.includes("ikea")) return "IKEA";
+  if (lowerName.includes("repair")) return "Fixit Maintenance";
+  if (lowerName.includes("utility")) return "Helsinki Utilities";
+
+  return "City Supplies";
+}
+
+function chooseTotal(fileName?: string) {
+  const seed = [...(fileName ?? "receipt")].reduce(
+    (sum, char) => sum + char.charCodeAt(0),
+    0
+  );
+
+  return Math.round((24 + (seed % 180) + 0.9) * 100) / 100;
+}
+
+export const parseReceiptWithMock: ReceiptParser = async (input) => {
+  const vendor = chooseVendor(input.fileName);
+  const total = chooseTotal(input.fileName);
+  const suggestedCategory =
+    input.categoryHints.find((category) =>
+      vendor.toLowerCase().includes(category.split(" ")[0].toLowerCase())
+    ) ??
+    input.categoryHints.find((category) => category === "Supplies") ??
+    input.categoryHints[0] ??
+    null;
+
+  return {
+    provider: "mock",
+    model: "mock-receipt-parser-v1",
+    scanMode: input.scanMode,
+    receipt: {
+      date: new Date().toISOString().slice(0, 10),
+      vendor,
+      total_amount: total,
+      tax_amount: Math.round(total * 0.2 * 100) / 100,
+      currency: input.currencyHint ?? "EUR",
+      payment_method: "Card",
+      last4: "4242",
+      suggested_category: suggestedCategory,
+      items: [
+        {
+          description: "Rental property supplies",
+          quantity: 1,
+          amount: Math.round(total * 0.65 * 100) / 100
+        },
+        {
+          description: "Service fee",
+          quantity: 1,
+          amount: Math.round(total * 0.35 * 100) / 100
+        }
+      ],
+      confidence: input.scanMode === "accurate" ? 0.86 : 0.74,
+      warnings: ["Mock extraction only. Review every field before reporting."]
+    },
+    rawResponse: {
+      mock: true,
+      fileName: input.fileName,
+      mimeType: input.mimeType,
+      byteLength: input.fileBuffer.byteLength
+    }
+  };
+};

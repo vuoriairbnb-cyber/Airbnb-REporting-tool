@@ -62,6 +62,58 @@ export type ExpenseEntryRow = {
   categories?: Pick<CategoryRow, "name"> | null;
 };
 
+export type SourceDocumentStatus = "uploaded" | "processing" | "processed" | "failed";
+
+export type SourceDocumentRow = {
+  id: string;
+  user_id: string;
+  property_id: string | null;
+  original_file_path: string;
+  original_file_name: string | null;
+  mime_type: string | null;
+  file_size_bytes: number | null;
+  page_count: number | null;
+  status: SourceDocumentStatus;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+  properties?: Pick<PropertyRow, "name"> | null;
+};
+
+export type ReceiptStatus =
+  | "uploaded"
+  | "processing"
+  | "needs_review"
+  | "reviewed"
+  | "failed"
+  | "archived";
+
+export type ReceiptRow = {
+  id: string;
+  user_id: string;
+  source_document_id: string | null;
+  expense_entry_id: string | null;
+  status: ReceiptStatus;
+  original_file_path: string | null;
+  image_path: string | null;
+  preview_image_path: string | null;
+  crop_image_path: string | null;
+  page_number: number | null;
+  ai_provider: string | null;
+  ai_model: string | null;
+  ai_scan_mode: string | null;
+  ai_confidence: number | null;
+  ai_raw_response: unknown;
+  ai_normalized_response: unknown;
+  ai_error_message: string | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  created_at: string;
+  updated_at: string;
+  source_documents?: SourceDocumentRow | null;
+  expense_entries?: ExpenseEntryRow | null;
+};
+
 export type DashboardSummary = {
   rentalIncomeThisYear: number;
   expensesThisYear: number;

@@ -6,6 +6,7 @@ import type {
   ExpenseEntryRow,
   IncomeEntryRow,
   PropertyRow,
+  ReceiptRow,
   ReportingFilters
 } from "@/server/reporting/types";
 
@@ -159,6 +160,41 @@ export async function getExpenseEntry(id: string) {
   if (error) return null;
 
   return data as ExpenseEntryRow;
+}
+
+export async function getReceipts() {
+  const supabase = (await createClient()) as unknown as SupabaseReportingClient;
+  const userId = await getCurrentUserId();
+
+  if (!userId) return [] as ReceiptRow[];
+
+  const { data, error } = await supabase
+    .from("receipts")
+    .select("*, source_documents(*, properties(name)), expense_entries(*)")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  return (data ?? []) as ReceiptRow[];
+}
+
+export async function getReceipt(id: string) {
+  const supabase = (await createClient()) as unknown as SupabaseReportingClient;
+  const userId = await getCurrentUserId();
+
+  if (!userId) return null;
+
+  const { data, error } = await supabase
+    .from("receipts")
+    .select("*, source_documents(*, properties(name)), expense_entries(*)")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .single();
+
+  if (error) return null;
+
+  return data as ReceiptRow;
 }
 
 export async function getDashboardSummary(): Promise<DashboardSummary> {

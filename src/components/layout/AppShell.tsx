@@ -3,6 +3,7 @@ import {
   BarChart3,
   Building2,
   FileArchive,
+  FileScan,
   Home,
   Receipt,
   Settings,
@@ -15,6 +16,7 @@ const navItems = [
   { href: "/app/properties", label: "Properties", icon: Building2 },
   { href: "/app/income", label: "Income", icon: WalletCards },
   { href: "/app/expenses", label: "Expenses", icon: Receipt },
+  { href: "/app/receipts", label: "Receipts", icon: FileScan },
   { href: "/app/reports", label: "Reports", icon: FileArchive },
   { href: "/app/settings", label: "Settings", icon: Settings }
 ] as const;
@@ -48,7 +50,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t bg-background md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-7 border-t bg-background md:hidden">
         {navItems.map((item) => (
           <Link
             key={item.href}
