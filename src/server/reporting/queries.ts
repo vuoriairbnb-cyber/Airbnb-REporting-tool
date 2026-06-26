@@ -6,6 +6,7 @@ import type {
   ExpenseEntryRow,
   IncomeEntryRow,
   PropertyRow,
+  ReportRow,
   ReceiptRow,
   ReportingFilters
 } from "@/server/reporting/types";
@@ -170,13 +171,51 @@ export async function getReceipts() {
 
   const { data, error } = await supabase
     .from("receipts")
-    .select("*, source_documents(*, properties(name)), expense_entries(*)")
+    .select(
+      "*, source_documents(*, properties(name)), expense_entries!receipts_expense_entry_id_fkey(*, properties(name), categories(name))"
+    )
     .eq("user_id", userId)
+    .neq("status", "archived")
     .order("created_at", { ascending: false });
 
   if (error) throw error;
 
   return (data ?? []) as ReceiptRow[];
+}
+
+export async function getReports() {
+  const supabase = (await createClient()) as unknown as SupabaseReportingClient;
+  const userId = await getCurrentUserId();
+
+  if (!userId) return [] as ReportRow[];
+
+  const { data, error } = await supabase
+    .from("reports")
+    .select("*, properties(name)")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  return (data ?? []) as ReportRow[];
+}
+
+export async function getReport(id: string) {
+  const supabase = (await createClient()) as unknown as SupabaseReportingClient;
+  const userId = await getCurrentUserId();
+
+  if (!userId) return null;
+
+  const { data, error } = await supabase
+    .from("reports")
+    .select("*, properties(name)")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .single();
+
+  if (error) return null;
+
+  return data as ReportRow;
 }
 
 export async function getReceipt(id: string) {
@@ -187,9 +226,12 @@ export async function getReceipt(id: string) {
 
   const { data, error } = await supabase
     .from("receipts")
-    .select("*, source_documents(*, properties(name)), expense_entries(*)")
+    .select(
+      "*, source_documents(*, properties(name)), expense_entries!receipts_expense_entry_id_fkey(*, properties(name), categories(name))"
+    )
     .eq("id", id)
     .eq("user_id", userId)
+    .neq("status", "archived")
     .single();
 
   if (error) return null;

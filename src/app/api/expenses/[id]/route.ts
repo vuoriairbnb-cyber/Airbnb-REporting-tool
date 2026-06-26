@@ -6,8 +6,9 @@ import {
 } from "@/lib/calculations/allocation";
 import { createClient } from "@/lib/supabase/server";
 import { expenseInputSchema } from "@/lib/validation/expenses";
-import { apiError, parseJsonBody } from "@/server/reporting/api";
+import { apiError, logServerError, parseJsonBody } from "@/server/reporting/api";
 import type { SupabaseReportingClient } from "@/server/reporting/db";
+import { assertExpenseRelations, isOwnershipError } from "@/server/reporting/ownership";
 import { getCurrentUserId } from "@/server/reporting/queries";
 
 type Context = {
@@ -34,7 +35,7 @@ export async function GET(_request: Request, context: Context) {
     .eq("user_id", userId)
     .single();
 
-  if (error) return apiError(error.message, 404);
+  if (error) return apiError("Expense not found.", 404);
 
   return NextResponse.json({ data });
 }
@@ -48,6 +49,14 @@ export async function PATCH(request: Request, context: Context) {
   const parsed = await parseJsonBody(request, expenseInputSchema.partial());
 
   if (parsed.error || !parsed.data) return apiError(parsed.error ?? "Invalid expense.");
+
+  try {
+    await assertExpenseRelations(userId, parsed.data);
+  } catch (error) {
+    if (isOwnershipError(error)) return apiError(error.message, error.status);
+    logServerError("expenses.update.ownership", error);
+    return apiError("Could not verify expense ownership.", 500);
+  }
 
   const update: Record<string, unknown> = { ...parsed.data };
 
@@ -64,7 +73,7 @@ export async function PATCH(request: Request, context: Context) {
       .eq("user_id", userId)
       .single();
 
-    if (currentError) return apiError(currentError.message, 404);
+    if (currentError) return apiError("Expense not found.", 404);
 
     const currentExpense = current as CurrentExpenseAllocation;
     const totalAmount = Number(
@@ -96,7 +105,10 @@ export async function PATCH(request: Request, context: Context) {
     .select("*")
     .single();
 
-  if (error) return apiError(error.message, 500);
+  if (error) {
+    logServerError("expenses.update", error);
+    return apiError("Could not update expense.", 500);
+  }
 
   return NextResponse.json({ data });
 }
@@ -116,7 +128,10 @@ export async function DELETE(_request: Request, context: Context) {
     .select("*")
     .single();
 
-  if (error) return apiError(error.message, 500);
+  if (error) {
+    logServerError("expenses.archive", error);
+    return apiError("Could not archive expense.", 500);
+  }
 
   return NextResponse.json({ data });
 }

@@ -4,6 +4,7 @@ export type AiProviderName = "mock" | "openai" | "anthropic";
 export type AiProvider = AiProviderName;
 
 export type ParsedReceiptItem = {
+  id: string;
   description: string;
   quantity: number | null;
   amount: number | null;

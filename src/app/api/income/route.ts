@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { incomeInputSchema } from "@/lib/validation/income";
-import { apiError, parseJsonBody } from "@/server/reporting/api";
+import { apiError, logServerError, parseJsonBody } from "@/server/reporting/api";
 import type { SupabaseReportingClient } from "@/server/reporting/db";
+import { assertIncomeRelations, isOwnershipError } from "@/server/reporting/ownership";
 import { getCurrentUserId } from "@/server/reporting/queries";
 
 export async function GET() {
@@ -17,7 +18,10 @@ export async function GET() {
     .eq("user_id", userId)
     .order("date", { ascending: false });
 
-  if (error) return apiError(error.message, 500);
+  if (error) {
+    logServerError("income.list", error);
+    return apiError("Could not load income entries.", 500);
+  }
 
   return NextResponse.json({ data });
 }
@@ -31,6 +35,14 @@ export async function POST(request: Request) {
 
   if (parsed.error || !parsed.data) return apiError(parsed.error ?? "Invalid income.");
 
+  try {
+    await assertIncomeRelations(userId, parsed.data);
+  } catch (error) {
+    if (isOwnershipError(error)) return apiError(error.message, error.status);
+    logServerError("income.create.ownership", error);
+    return apiError("Could not verify income entry ownership.", 500);
+  }
+
   const supabase = (await createClient()) as unknown as SupabaseReportingClient;
   const { data, error } = await supabase
     .from("income_entries")
@@ -38,7 +50,10 @@ export async function POST(request: Request) {
     .select("*")
     .single();
 
-  if (error) return apiError(error.message, 500);
+  if (error) {
+    logServerError("income.create", error);
+    return apiError("Could not create income entry.", 500);
+  }
 
   return NextResponse.json({ data }, { status: 201 });
 }

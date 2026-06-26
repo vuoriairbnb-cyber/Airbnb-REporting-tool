@@ -8,11 +8,25 @@ type QueryResult<T = unknown> = Promise<{
 }>;
 
 export type SupabaseQueryBuilder<T = unknown> = {
-  select(columns?: string): SupabaseQueryBuilder<T>;
+  select(
+    columns?: string,
+    options?: {
+      count?: "exact" | "planned" | "estimated";
+      head?: boolean;
+    }
+  ): SupabaseQueryBuilder<T>;
   insert(values: unknown): SupabaseQueryBuilder<T>;
+  upsert(
+    values: unknown,
+    options?: {
+      onConflict?: string;
+      ignoreDuplicates?: boolean;
+    }
+  ): SupabaseQueryBuilder<T>;
   update(values: unknown): SupabaseQueryBuilder<T>;
   delete(): SupabaseQueryBuilder<T>;
   eq(column: string, value: unknown): SupabaseQueryBuilder<T>;
+  neq(column: string, value: unknown): SupabaseQueryBuilder<T>;
   gte(column: string, value: unknown): SupabaseQueryBuilder<T>;
   lte(column: string, value: unknown): SupabaseQueryBuilder<T>;
   order(
@@ -23,6 +37,7 @@ export type SupabaseQueryBuilder<T = unknown> = {
     }
   ): SupabaseQueryBuilder<T>;
   single(): QueryResult<T>;
+  maybeSingle(): QueryResult<T>;
   then<TResult1 = { data: T | null; error: SupabaseError | null }, TResult2 = never>(
     onfulfilled?:
       | ((value: {

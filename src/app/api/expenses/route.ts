@@ -5,8 +5,9 @@ import {
 } from "@/lib/calculations/allocation";
 import { createClient } from "@/lib/supabase/server";
 import { expenseInputSchema } from "@/lib/validation/expenses";
-import { apiError, parseJsonBody } from "@/server/reporting/api";
+import { apiError, logServerError, parseJsonBody } from "@/server/reporting/api";
 import type { SupabaseReportingClient } from "@/server/reporting/db";
+import { assertExpenseRelations, isOwnershipError } from "@/server/reporting/ownership";
 import { getCurrentUserId } from "@/server/reporting/queries";
 
 export async function GET() {
@@ -21,7 +22,10 @@ export async function GET() {
     .eq("user_id", userId)
     .order("date", { ascending: false, nullsFirst: false });
 
-  if (error) return apiError(error.message, 500);
+  if (error) {
+    logServerError("expenses.list", error);
+    return apiError("Could not load expenses.", 500);
+  }
 
   return NextResponse.json({ data });
 }
@@ -34,6 +38,14 @@ export async function POST(request: Request) {
   const parsed = await parseJsonBody(request, expenseInputSchema);
 
   if (parsed.error || !parsed.data) return apiError(parsed.error ?? "Invalid expense.");
+
+  try {
+    await assertExpenseRelations(userId, parsed.data);
+  } catch (error) {
+    if (isOwnershipError(error)) return apiError(error.message, error.status);
+    logServerError("expenses.create.ownership", error);
+    return apiError("Could not verify expense ownership.", 500);
+  }
 
   const allocationPercentage = normalizeAllocationPercentage(
     parsed.data.allocation_method,
@@ -58,7 +70,10 @@ export async function POST(request: Request) {
     .select("*")
     .single();
 
-  if (error) return apiError(error.message, 500);
+  if (error) {
+    logServerError("expenses.create", error);
+    return apiError("Could not create expense.", 500);
+  }
 
   return NextResponse.json({ data }, { status: 201 });
 }

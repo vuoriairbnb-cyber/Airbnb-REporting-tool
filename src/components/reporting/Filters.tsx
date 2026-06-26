@@ -20,7 +20,7 @@ export function ReportingFilters({
   includeStatus?: boolean;
 }) {
   return (
-    <form className="mb-5 grid gap-3 rounded-lg border bg-background p-4 md:grid-cols-5">
+    <form className="grid gap-3 rounded-2xl border border-border bg-card p-4 shadow-card md:grid-cols-5">
       <Field label="From">
         <input
           className={inputClassName}

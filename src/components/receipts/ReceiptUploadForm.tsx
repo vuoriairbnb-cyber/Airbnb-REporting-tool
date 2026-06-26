@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
   const [propertyId, setPropertyId] = useState("");
   const [scanMode, setScanMode] = useState<"fast" | "accurate">("fast");
   const [error, setError] = useState<string | null>(null);
+  const [needsAiConsent, setNeedsAiConsent] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -27,6 +29,7 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
 
   function selectFile(nextFile?: File) {
     setError(null);
+    setNeedsAiConsent(false);
 
     if (!nextFile) return;
 
@@ -41,6 +44,7 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setNeedsAiConsent(false);
 
     if (!file) {
       setError("Choose a receipt first.");
@@ -77,7 +81,17 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
       });
 
     if (upload.error) {
-      setError(upload.error.message);
+      await fetch("/api/uploads/create-source-document", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceDocumentId: data.sourceDocumentId,
+          errorMessage: upload.error.message
+        })
+      }).catch(() => null);
+      setError(
+        `Receipt upload failed before AI extraction could start. ${upload.error.message}`
+      );
       setIsPending(false);
       return;
     }
@@ -95,7 +109,11 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
 
     if (!parseResponse.ok) {
       const body = await parseResponse.json().catch(() => null);
-      setError(body?.error ?? "Could not parse receipt.");
+      const message = body?.error ?? "Could not parse receipt.";
+      setNeedsAiConsent(
+        message === "AI processing consent is required before parsing receipts."
+      );
+      setError(message);
       return;
     }
 
@@ -151,7 +169,7 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
             ))}
           </select>
         </Field>
-        <Field label="Mock scan mode">
+        <Field label="Scan mode">
           <select
             className={selectClassName}
             value={scanMode}
@@ -163,7 +181,21 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
         </Field>
       </div>
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? (
+        <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm">
+          <p className="text-destructive">{error}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {needsAiConsent ? (
+              <Button asChild size="sm">
+                <Link href="/app/settings">Open AI processing settings</Link>
+              </Button>
+            ) : null}
+            <Button asChild variant="outline" size="sm">
+              <Link href="/app/expenses/new">Add expense manually</Link>
+            </Button>
+          </div>
+        </div>
+      ) : null}
       <Button type="submit" disabled={isPending}>
         {isPending ? "Uploading and scanning..." : "Upload and scan receipt"}
       </Button>

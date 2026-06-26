@@ -48,8 +48,9 @@ export const marketingFeatures = [
 
 export const pricingPlans = [
   {
+    id: "free",
     name: "Free Trial",
-    price: "0 EUR",
+    price: "EUR 0",
     cadence: "for 14 days",
     description: "Try property, income and expense organization before choosing a plan.",
     features: [
@@ -60,20 +61,22 @@ export const pricingPlans = [
     ]
   },
   {
+    id: "starter",
     name: "Starter",
-    price: "19 EUR",
+    price: "EUR 19",
     cadence: "per month",
     description: "For hosts organizing one or two short-term rental properties.",
     features: [
       "Up to 2 properties",
       "Monthly receipt scan allowance",
       "CSV and PDF reports",
-      "Receipt archive"
+      "Receipt archive later in Pro"
     ]
   },
   {
+    id: "pro",
     name: "Pro",
-    price: "39 EUR",
+    price: "EUR 39",
     cadence: "per month",
     description: "For hosts who need more capacity and ZIP report packaging.",
     features: [

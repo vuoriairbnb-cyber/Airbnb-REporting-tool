@@ -13,7 +13,11 @@ const sections = [
   },
   {
     title: "Payments",
-    body: "Subscription checkout and billing portal flows are planned to be handled by Stripe."
+    body: "Subscription checkout and billing portal flows are handled by Stripe in test mode during development. Payment card details are not stored by HostReport."
+  },
+  {
+    title: "Data deletion",
+    body: "During private beta, account and workspace deletion requests are handled manually. Receipt files and generated reports are kept in private storage while a deletion request is reviewed."
   }
 ];
 
@@ -31,7 +35,10 @@ export default function PrivacyPage() {
 
       <div className="mt-8 grid gap-4">
         {sections.map((section) => (
-          <section key={section.title} className="rounded-lg border bg-background p-5">
+          <section
+            key={section.title}
+            className="rounded-2xl border border-border bg-card p-6 shadow-card"
+          >
             <h2 className="font-semibold">{section.title}</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">{section.body}</p>
           </section>

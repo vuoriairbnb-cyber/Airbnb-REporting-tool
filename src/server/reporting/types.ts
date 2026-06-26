@@ -75,6 +75,7 @@ export type SourceDocumentRow = {
   page_count: number | null;
   status: SourceDocumentStatus;
   error_message: string | null;
+  archived_at?: string | null;
   created_at: string;
   updated_at: string;
   properties?: Pick<PropertyRow, "name"> | null;
@@ -108,6 +109,7 @@ export type ReceiptRow = {
   ai_error_message: string | null;
   reviewed_at: string | null;
   reviewed_by: string | null;
+  archived_at?: string | null;
   created_at: string;
   updated_at: string;
   source_documents?: SourceDocumentRow | null;
@@ -120,6 +122,62 @@ export type DashboardSummary = {
   candidateReportableExpenses: number;
   estimatedRentalResult: number;
   expensesMissingAllocation: number;
+};
+
+export type ReportStatus = "pending" | "processing" | "ready" | "failed";
+
+export type ReportType =
+  | "income_csv"
+  | "expense_csv"
+  | "allocation_csv"
+  | "tax_preparation_pdf"
+  | "receipt_archive_zip"
+  | "full_reporting_zip";
+
+export type ReportRow = {
+  id: string;
+  user_id: string;
+  type: ReportType;
+  status: ReportStatus;
+  property_id: string | null;
+  date_from: string | null;
+  date_to: string | null;
+  file_path: string | null;
+  file_name: string | null;
+  mime_type: string | null;
+  file_size_bytes: number | null;
+  filters: Record<string, unknown> | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+  properties?: Pick<PropertyRow, "name"> | null;
+};
+
+export type SubscriptionStatus =
+  | "trialing"
+  | "active"
+  | "past_due"
+  | "canceled"
+  | "incomplete"
+  | "incomplete_expired"
+  | "unpaid"
+  | "none";
+
+export type SubscriptionPlan = "free" | "starter" | "pro";
+
+export type SubscriptionRow = {
+  id: string;
+  user_id: string;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  stripe_price_id: string | null;
+  plan: SubscriptionPlan;
+  status: SubscriptionStatus;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
 export type ReportingFilters = {

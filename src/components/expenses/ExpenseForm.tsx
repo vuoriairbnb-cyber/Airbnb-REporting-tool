@@ -91,7 +91,7 @@ export function ExpenseForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="grid gap-4 rounded-lg border bg-background p-4"
+      className="grid gap-4 rounded-2xl border border-border bg-card p-5 shadow-card"
     >
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="Date">
@@ -184,9 +184,9 @@ export function ExpenseForm({
           />
         </Field>
       </div>
-      <div className="rounded-md border bg-muted/40 p-4">
-        <p className="text-sm text-muted-foreground">Candidate reportable amount</p>
-        <p className="mt-2 text-2xl font-semibold">
+      <div className="rounded-xl border border-primary/20 bg-primary/10 p-4">
+        <p className="text-sm text-primary">Candidate reportable amount</p>
+        <p className="mt-2 font-display text-2xl text-primary">
           {formatCurrency(candidateAmount, currency)}
         </p>
       </div>

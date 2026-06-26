@@ -5,8 +5,9 @@ import {
 } from "@/lib/calculations/allocation";
 import { createClient } from "@/lib/supabase/server";
 import { reviewReceiptSchema } from "@/lib/validation/receipts";
-import { apiError, parseJsonBody } from "@/server/reporting/api";
+import { apiError, logServerError, parseJsonBody } from "@/server/reporting/api";
 import type { SupabaseReportingClient } from "@/server/reporting/db";
+import { assertExpenseRelations, isOwnershipError } from "@/server/reporting/ownership";
 import { getCurrentUserId } from "@/server/reporting/queries";
 import type { ReceiptRow } from "@/server/reporting/types";
 
@@ -23,6 +24,15 @@ export async function POST(
   if (parsed.error || !parsed.data) return apiError(parsed.error ?? "Invalid review.");
 
   const { id } = await params;
+
+  try {
+    await assertExpenseRelations(userId, parsed.data);
+  } catch (error) {
+    if (isOwnershipError(error)) return apiError(error.message, error.status);
+    logServerError("receipts.review.ownership", error);
+    return apiError("Could not verify receipt review ownership.", 500);
+  }
+
   const supabase = (await createClient()) as unknown as SupabaseReportingClient;
   const { data: receiptData, error: receiptError } = await supabase
     .from("receipts")
@@ -34,6 +44,13 @@ export async function POST(
   if (receiptError || !receiptData) return apiError("Receipt not found.", 404);
 
   const receipt = receiptData as Pick<ReceiptRow, "id" | "expense_entry_id">;
+
+  if (!receipt.expense_entry_id) {
+    return apiError(
+      "This receipt does not have a linked expense draft. Add the expense manually or try parsing the receipt again.",
+      409
+    );
+  }
 
   const allocationPercentage = normalizeAllocationPercentage(
     parsed.data.allocation_method,
@@ -59,7 +76,8 @@ export async function POST(
     .single();
 
   if (expenseError || !expense) {
-    return apiError(expenseError?.message ?? "Could not save expense.", 500);
+    logServerError("receipts.review.expense", expenseError);
+    return apiError("Could not save expense.", 500);
   }
 
   const { error: reviewError } = await supabase
@@ -72,7 +90,10 @@ export async function POST(
     .eq("id", id)
     .eq("user_id", userId);
 
-  if (reviewError) return apiError(reviewError.message, 500);
+  if (reviewError) {
+    logServerError("receipts.review", reviewError);
+    return apiError("Could not mark receipt reviewed.", 500);
+  }
 
   return NextResponse.json({ data: { receiptId: id, expense } });
 }

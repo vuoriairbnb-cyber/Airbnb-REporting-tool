@@ -15,7 +15,11 @@ const terms = [
   },
   {
     title: "Subscriptions",
-    body: "Pricing plans are placeholders until Stripe Checkout and billing flows are connected."
+    body: "Subscription checkout and billing portal flows run through Stripe test mode until production billing is prepared."
+  },
+  {
+    title: "Account and data deletion",
+    body: "Self-serve data deletion is not connected yet. During private beta, deletion requests are reviewed manually before account, workspace, receipt and report data is removed or archived according to policy."
   }
 ];
 
@@ -32,7 +36,10 @@ export default function TermsPage() {
 
       <div className="mt-8 grid gap-4">
         {terms.map((term) => (
-          <section key={term.title} className="rounded-lg border bg-background p-5">
+          <section
+            key={term.title}
+            className="rounded-2xl border border-border bg-card p-6 shadow-card"
+          >
             <h2 className="font-semibold">{term.title}</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">{term.body}</p>
           </section>

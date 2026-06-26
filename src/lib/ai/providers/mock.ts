@@ -1,3 +1,5 @@
+import { normalizeReceiptResult } from "@/lib/ai/normalize";
+import { suggestCategoryFromList } from "@/lib/ai/prompts/category-suggester";
 import type { ReceiptParser } from "@/lib/ai/types";
 
 function chooseVendor(fileName?: string) {
@@ -24,18 +26,19 @@ export const parseReceiptWithMock: ReceiptParser = async (input) => {
   const vendor = chooseVendor(input.fileName);
   const total = chooseTotal(input.fileName);
   const suggestedCategory =
-    input.categoryHints.find((category) =>
-      vendor.toLowerCase().includes(category.split(" ")[0].toLowerCase())
-    ) ??
+    suggestCategoryFromList({
+      suggestedCategory: vendor,
+      categories: input.categoryHints
+    }) ??
     input.categoryHints.find((category) => category === "Supplies") ??
     input.categoryHints[0] ??
     null;
 
-  return {
+  return normalizeReceiptResult({
     provider: "mock",
     model: "mock-receipt-parser-v1",
     scanMode: input.scanMode,
-    receipt: {
+    payload: {
       date: new Date().toISOString().slice(0, 10),
       vendor,
       total_amount: total,
@@ -65,5 +68,5 @@ export const parseReceiptWithMock: ReceiptParser = async (input) => {
       mimeType: input.mimeType,
       byteLength: input.fileBuffer.byteLength
     }
-  };
+  });
 };

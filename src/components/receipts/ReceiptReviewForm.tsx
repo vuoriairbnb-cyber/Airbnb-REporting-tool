@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AlertTriangle, FileText, Save, Sparkles } from "lucide-react";
+import { Pill } from "@/components/app/primitives";
 import { Button } from "@/components/ui/button";
 import {
   calculateCandidateReportableAmount,
@@ -15,17 +18,46 @@ import {
   textareaClassName
 } from "@/components/forms/Field";
 import { formatCurrency } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { CategoryRow, PropertyRow, ReceiptRow } from "@/server/reporting/types";
 
 type NormalizedReceipt = {
   date?: string | null;
   vendor?: string | null;
   total_amount?: number | null;
+  tax_amount?: number | null;
   currency?: string | null;
   suggested_category?: string | null;
   confidence?: number | null;
   warnings?: string[];
 };
+
+const reviewInputClassName = cn(
+  inputClassName,
+  "rounded-lg border-border bg-card focus:border-primary focus:ring-primary/20"
+);
+const reviewSelectClassName = cn(
+  selectClassName,
+  "rounded-lg border-border bg-card focus:border-primary focus:ring-primary/20"
+);
+const reviewTextareaClassName = cn(
+  textareaClassName,
+  "rounded-lg border-border bg-card focus:border-primary focus:ring-primary/20"
+);
+
+function confidenceLabel(confidence?: number | null) {
+  if (confidence === null || confidence === undefined) return "No confidence";
+
+  return `Confidence ${Math.round(confidence * 100)}%`;
+}
+
+function fileTypeLabel(mimeType?: string | null) {
+  if (!mimeType) return "Receipt file";
+  if (mimeType === "application/pdf") return "PDF receipt";
+  if (mimeType.startsWith("image/")) return "Image receipt";
+
+  return mimeType;
+}
 
 export function ReceiptReviewForm({
   receipt,
@@ -41,10 +73,16 @@ export function ReceiptReviewForm({
   const router = useRouter();
   const normalized = (receipt.ai_normalized_response ?? {}) as NormalizedReceipt;
   const expense = receipt.expense_entries;
+  const sourceDocument = receipt.source_documents;
+  const isMissingLinkedExpense = !expense?.id;
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const [isReparsing, setIsReparsing] = useState(false);
   const [totalAmount, setTotalAmount] = useState(
     String(expense?.total_amount ?? normalized.total_amount ?? "")
+  );
+  const [currencyValue, setCurrencyValue] = useState(
+    expense?.currency ?? normalized.currency ?? "EUR"
   );
   const [allocationMethod, setAllocationMethod] = useState<AllocationMethod>(
     (expense?.allocation_method as AllocationMethod | undefined) ?? "manual_percentage"
@@ -52,7 +90,7 @@ export function ReceiptReviewForm({
   const [allocationPercentage, setAllocationPercentage] = useState(
     String(expense?.allocation_percentage ?? 100)
   );
-  const currency = expense?.currency ?? normalized.currency ?? "EUR";
+  const confidence = receipt.ai_confidence ?? normalized.confidence ?? null;
 
   const normalizedPercentage = useMemo(
     () =>
@@ -99,166 +137,286 @@ export function ReceiptReviewForm({
     router.refresh();
   }
 
+  async function handleAccurateScan() {
+    setError(null);
+    setIsReparsing(true);
+
+    const response = await fetch("/api/ai/reparse-receipt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ receiptId: receipt.id })
+    });
+
+    setIsReparsing(false);
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      setError(body?.error ?? "Could not run accurate receipt scan.");
+      return;
+    }
+
+    router.refresh();
+  }
+
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)]">
-      <section className="rounded-lg border bg-background p-4">
-        <h2 className="font-semibold">Receipt file</h2>
-        <div className="mt-4 overflow-hidden rounded-md border bg-muted/40">
-          {fileUrl && receipt.source_documents?.mime_type?.startsWith("image/") ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={fileUrl} alt="Receipt preview" className="h-auto w-full" />
-          ) : fileUrl ? (
-            <iframe src={fileUrl} title="Receipt preview" className="h-96 w-full" />
-          ) : (
-            <div className="grid min-h-56 place-items-center p-6 text-center text-sm text-muted-foreground">
-              Preview is unavailable. The original file is still stored privately.
+    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+      <div className="border-b border-border bg-surface/60 px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-display text-lg">Receipt review</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {sourceDocument?.original_file_name ?? "Private receipt file"} /{" "}
+              {fileTypeLabel(sourceDocument?.mime_type)}
+            </p>
+          </div>
+          <Pill tone="bg-warm/20 text-warm-foreground">
+            <Sparkles className="mr-1 h-3 w-3" />
+            {confidenceLabel(confidence)}
+          </Pill>
+        </div>
+      </div>
+
+      <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.15fr)]">
+        <section className="rounded-xl border border-dashed border-border bg-surface/50 p-4">
+          <div className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
+            {fileUrl && sourceDocument?.mime_type?.startsWith("image/") ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={fileUrl} alt="Receipt preview" className="h-auto w-full" />
+            ) : fileUrl ? (
+              <iframe src={fileUrl} title="Receipt preview" className="h-96 w-full" />
+            ) : (
+              <div className="grid min-h-72 place-items-center p-6 text-center">
+                <div>
+                  <FileText className="mx-auto h-9 w-9 text-primary" />
+                  <p className="mt-3 font-medium">Preview unavailable</p>
+                  <p className="mt-1 max-w-xs text-sm text-muted-foreground">
+                    The original file is still stored privately.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <dl className="mt-4 grid gap-2 text-sm">
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted-foreground">File</dt>
+              <dd className="truncate text-right">
+                {sourceDocument?.original_file_name ?? "Receipt"}
+              </dd>
             </div>
-          )}
-        </div>
-        <dl className="mt-4 grid gap-2 text-sm">
-          <div className="flex justify-between gap-3">
-            <dt className="text-muted-foreground">File</dt>
-            <dd className="text-right">{receipt.source_documents?.original_file_name}</dd>
-          </div>
-          <div className="flex justify-between gap-3">
-            <dt className="text-muted-foreground">Status</dt>
-            <dd className="capitalize">{receipt.status.replace("_", " ")}</dd>
-          </div>
-          <div className="flex justify-between gap-3">
-            <dt className="text-muted-foreground">AI confidence</dt>
-            <dd>{Math.round((receipt.ai_confidence ?? 0) * 100)}%</dd>
-          </div>
-        </dl>
-      </section>
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted-foreground">Status</dt>
+              <dd className="capitalize">{receipt.status.replace("_", " ")}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted-foreground">AI provider</dt>
+              <dd>{receipt.ai_provider ?? "Mock"}</dd>
+            </div>
+          </dl>
+        </section>
 
-      <form
-        onSubmit={handleSubmit}
-        className="grid gap-4 rounded-lg border bg-background p-4"
-      >
-        <div>
-          <h2 className="font-semibold">Extracted fields</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Mock extraction requires review before it becomes a reviewed expense.
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {isMissingLinkedExpense ? (
+            <div className="rounded-xl border border-warm/30 bg-warm/10 p-3 text-sm">
+              <div className="flex gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warm" />
+                <div>
+                  <p className="font-medium">Linked expense draft missing</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    This receipt cannot be saved as a reviewed expense until it has a
+                    linked draft. Add the expense manually or upload the receipt again.
+                  </p>
+                  <Button asChild variant="outline" size="sm" className="mt-3">
+                    <Link href="/app/expenses/new">Add expense manually</Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-display text-lg">Extracted fields</h2>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  AI extraction results must be reviewed before saving.
+                </p>
+              </div>
+              <Pill tone="bg-primary/10 text-primary">AI extraction</Pill>
+            </div>
+            <div className="mt-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAccurateScan}
+                disabled={isPending || isReparsing}
+              >
+                <Sparkles className="h-4 w-4" />
+                {isReparsing ? "Scanning accurately..." : "Scan again accurately"}
+              </Button>
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <Field label="Date">
+                <input
+                  className={reviewInputClassName}
+                  type="date"
+                  name="date"
+                  defaultValue={expense?.date ?? normalized.date ?? ""}
+                />
+              </Field>
+              <Field label="Vendor">
+                <input
+                  className={reviewInputClassName}
+                  name="vendor"
+                  defaultValue={expense?.vendor ?? normalized.vendor ?? ""}
+                />
+              </Field>
+              <Field label="Total amount">
+                <input
+                  className={reviewInputClassName}
+                  type="number"
+                  step="0.01"
+                  name="total_amount"
+                  value={totalAmount}
+                  onChange={(event) => setTotalAmount(event.target.value)}
+                  required
+                />
+              </Field>
+              <Field label="VAT / tax">
+                <input
+                  className={cn(reviewInputClassName, "text-muted-foreground")}
+                  value={normalized.tax_amount ?? ""}
+                  readOnly
+                  aria-describedby="tax-note"
+                />
+                <p id="tax-note" className="text-xs text-muted-foreground">
+                  Shown from AI extraction; not stored as a separate expense field yet.
+                </p>
+              </Field>
+              <Field label="Currency">
+                <input
+                  className={reviewInputClassName}
+                  name="currency"
+                  value={currencyValue}
+                  maxLength={3}
+                  onChange={(event) => setCurrencyValue(event.target.value)}
+                />
+              </Field>
+              <Field label="Suggested category">
+                <select
+                  className={reviewSelectClassName}
+                  name="category_id"
+                  defaultValue={expense?.category_id ?? ""}
+                >
+                  <option value="">No category</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+                {normalized.suggested_category ? (
+                  <p className="text-xs text-muted-foreground">
+                    Suggested by AI: {normalized.suggested_category}
+                  </p>
+                ) : null}
+              </Field>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-4">
+            <h2 className="font-display text-lg">Expense allocation</h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              Choose a property and allocation percentage before saving the reviewed
+              expense.
+            </p>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <Field label="Property">
+                <select
+                  className={reviewSelectClassName}
+                  name="property_id"
+                  defaultValue={
+                    expense?.property_id ?? receipt.source_documents?.property_id ?? ""
+                  }
+                >
+                  <option value="">No property</option>
+                  {properties.map((property) => (
+                    <option key={property.id} value={property.id}>
+                      {property.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Allocation method">
+                <select
+                  className={reviewSelectClassName}
+                  value={allocationMethod}
+                  onChange={(event) =>
+                    setAllocationMethod(event.target.value as AllocationMethod)
+                  }
+                >
+                  <option value="full_rental_use">Full rental use</option>
+                  <option value="manual_percentage">Manual percentage</option>
+                  <option value="excluded">Excluded</option>
+                </select>
+              </Field>
+              <Field label="Allocation %">
+                <input
+                  className={reviewInputClassName}
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={normalizedPercentage}
+                  disabled={allocationMethod !== "manual_percentage"}
+                  onChange={(event) => setAllocationPercentage(event.target.value)}
+                />
+              </Field>
+              <div className="rounded-xl border border-primary/20 bg-primary/10 p-4">
+                <p className="text-sm text-primary">Candidate reportable amount</p>
+                <p className="mt-2 font-display text-2xl text-primary">
+                  {formatCurrency(candidateAmount, currencyValue)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <Field label="Notes">
+            <textarea
+              className={reviewTextareaClassName}
+              name="notes"
+              defaultValue={expense?.notes ?? ""}
+            />
+          </Field>
+
+          {normalized.warnings?.length ? (
+            <div className="rounded-xl border border-warm/30 bg-warm/10 p-3 text-sm">
+              <div className="flex gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warm" />
+                <div>
+                  <p className="font-medium">Review warning</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {normalized.warnings.join(" ")}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          <p className="text-xs text-muted-foreground">
+            AI results must be reviewed before saving.
           </p>
-        </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Date">
-            <input
-              className={inputClassName}
-              type="date"
-              name="date"
-              defaultValue={expense?.date ?? normalized.date ?? ""}
-            />
-          </Field>
-          <Field label="Property">
-            <select
-              className={selectClassName}
-              name="property_id"
-              defaultValue={
-                expense?.property_id ?? receipt.source_documents?.property_id ?? ""
-              }
-            >
-              <option value="">No property</option>
-              {properties.map((property) => (
-                <option key={property.id} value={property.id}>
-                  {property.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Vendor">
-            <input
-              className={inputClassName}
-              name="vendor"
-              defaultValue={expense?.vendor ?? normalized.vendor ?? ""}
-            />
-          </Field>
-          <Field label="Category">
-            <select
-              className={selectClassName}
-              name="category_id"
-              defaultValue={expense?.category_id ?? ""}
-            >
-              <option value="">No category</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Total amount">
-            <input
-              className={inputClassName}
-              type="number"
-              step="0.01"
-              name="total_amount"
-              value={totalAmount}
-              onChange={(event) => setTotalAmount(event.target.value)}
-              required
-            />
-          </Field>
-          <Field label="Currency">
-            <input
-              className={inputClassName}
-              name="currency"
-              defaultValue={currency}
-              maxLength={3}
-            />
-          </Field>
-          <Field label="Allocation method">
-            <select
-              className={selectClassName}
-              value={allocationMethod}
-              onChange={(event) =>
-                setAllocationMethod(event.target.value as AllocationMethod)
-              }
-            >
-              <option value="full_rental_use">Full rental use</option>
-              <option value="manual_percentage">Manual percentage</option>
-              <option value="excluded">Excluded</option>
-            </select>
-          </Field>
-          <Field label="Allocation %">
-            <input
-              className={inputClassName}
-              type="number"
-              min="0"
-              max="100"
-              step="0.01"
-              value={normalizedPercentage}
-              disabled={allocationMethod !== "manual_percentage"}
-              onChange={(event) => setAllocationPercentage(event.target.value)}
-            />
-          </Field>
-        </div>
-
-        <div className="rounded-md border bg-muted/40 p-4">
-          <p className="text-sm text-muted-foreground">Candidate reportable amount</p>
-          <p className="mt-2 text-2xl font-semibold">
-            {formatCurrency(candidateAmount, currency)}
-          </p>
-        </div>
-
-        <Field label="Notes">
-          <textarea
-            className={textareaClassName}
-            name="notes"
-            defaultValue={expense?.notes ?? ""}
-          />
-        </Field>
-
-        {normalized.warnings?.length ? (
-          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-            {normalized.warnings.join(" ")}
-          </div>
-        ) : null}
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Saving..." : "Save as reviewed expense"}
-        </Button>
-      </form>
-    </div>
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          <Button type="submit" disabled={isPending || isMissingLinkedExpense}>
+            <Save className="h-4 w-4" />
+            {isPending ? "Saving..." : "Save as reviewed expense"}
+          </Button>
+        </form>
+      </div>
+    </section>
   );
 }

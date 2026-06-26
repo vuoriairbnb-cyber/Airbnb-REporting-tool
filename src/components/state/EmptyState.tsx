@@ -13,9 +13,9 @@ export function EmptyState({
   actionLabel?: string;
 }) {
   return (
-    <div className="flex min-h-48 flex-col items-center justify-center rounded-lg border bg-background p-6 text-center">
-      {Icon ? <Icon className="mb-3 h-6 w-6 text-primary" /> : null}
-      <h2 className="text-base font-semibold">{title}</h2>
+    <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/60 p-8 text-center">
+      {Icon ? <Icon className="mb-3 h-8 w-8 text-primary" /> : null}
+      <h2 className="font-display text-lg">{title}</h2>
       <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
         {description}
       </p>

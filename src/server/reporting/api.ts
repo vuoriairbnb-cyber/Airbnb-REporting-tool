@@ -5,6 +5,17 @@ export function apiError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }
 
+export function logServerError(context: string, error: unknown) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "Unknown server error";
+
+  console.error(`[${context}] ${message}`);
+}
+
 export async function parseJsonBody<T>(request: Request, schema: ZodSchema<T>) {
   try {
     const body = await request.json();

@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { ReceiptReviewForm } from "@/components/receipts/ReceiptReviewForm";
 import { createClient } from "@/lib/supabase/server";
 import { getCategories, getProperties, getReceipt } from "@/server/reporting/queries";
@@ -32,17 +31,23 @@ export default async function ReceiptReviewPage({
       : null;
 
   return (
-    <>
-      <PageHeader
-        title="Review receipt"
-        description="Confirm extracted data before creating a reviewed expense."
-      />
+    <div className="space-y-5">
+      <div className="min-w-0">
+        <p className="text-sm text-muted-foreground">Receipt review</p>
+        <h1 className="mt-1 font-display text-2xl leading-tight md:text-3xl">
+          Review receipt
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+          Confirm AI extraction, expense allocation and candidate reportable amount before
+          creating a reviewed expense.
+        </p>
+      </div>
       <ReceiptReviewForm
         receipt={receipt}
         properties={properties}
         categories={categories}
         fileUrl={signedUrl?.data?.signedUrl ?? null}
       />
-    </>
+    </div>
   );
 }

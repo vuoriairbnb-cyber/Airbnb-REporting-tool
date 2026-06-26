@@ -1,52 +1,100 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from "@/components/ui/card";
-import { marketingFeatures } from "@/lib/constants/marketing";
+  BarChart3,
+  Building2,
+  CheckCircle2,
+  FileText,
+  Percent,
+  Receipt,
+  ScanLine,
+  Smartphone,
+  Sparkles
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { DisclaimerBlock } from "@/components/marketing/DisclaimerBlock";
+
+const sections = [
+  {
+    icon: BarChart3,
+    title: "Income tracking",
+    body: "Log payouts from Airbnb, Booking.com, Vrbo and direct bookings. Track gross amount, platform fee, cleaning fee and net payout per stay."
+  },
+  {
+    icon: Receipt,
+    title: "Expense tracking",
+    body: "Capture vendor, category, date and total. Filter by property or date range and keep every cost tied to the right place."
+  },
+  {
+    icon: ScanLine,
+    title: "Receipt scanning",
+    body: "Upload a receipt image or PDF. The app extracts date, vendor, total, tax amount and a suggested category for your review."
+  },
+  {
+    icon: CheckCircle2,
+    title: "Receipt review",
+    body: "Every extracted field is editable. Confidence details and warnings help you review the draft before saving."
+  },
+  {
+    icon: Percent,
+    title: "Expense allocation",
+    body: "Choose full rental use, a manual percentage, or excluded. Candidate reportable amounts update from your allocation."
+  },
+  {
+    icon: Building2,
+    title: "Candidate reportable amounts",
+    body: "Candidate reportable amount equals total amount multiplied by allocation percentage. You control and review the inputs."
+  },
+  {
+    icon: FileText,
+    title: "Reports and exports",
+    body: "Prepare income CSV, expense CSV, allocation CSV, tax-preparation PDF summaries, receipt archive ZIP files and full reporting ZIP files."
+  },
+  {
+    icon: Smartphone,
+    title: "Mobile-first use",
+    body: "Designed for one-handed use on your phone. Add the web app to your Home Screen and capture receipts as you go."
+  }
+];
 
 export default function FeaturesPage() {
   return (
-    <section className="mx-auto max-w-6xl px-4 py-14">
-      <div className="max-w-3xl">
+    <section className="mx-auto max-w-7xl px-5 py-16 md:py-24">
+      <div className="mx-auto max-w-2xl text-center">
         <p className="text-sm font-medium text-primary">Features</p>
-        <h1 className="mt-3 text-3xl font-semibold sm:text-4xl">
-          Clean reporting preparation without spreadsheet sprawl
+        <h1 className="mt-2 text-4xl leading-tight md:text-5xl">
+          A focused toolkit for short-term rental hosts.
         </h1>
-        <p className="mt-4 text-base leading-7 text-muted-foreground">
-          HostReport keeps income tracking, AI receipt scanning, expense allocation,
-          candidate reportable amounts and tax-preparation reports in one mobile-first
-          workflow.
+        <p className="mt-4 text-muted-foreground">
+          Not an accounting suite. Not a bookkeeping service. Just the pieces a host needs
+          for cleaner reporting preparation.
         </p>
       </div>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {marketingFeatures.map((feature) => (
-          <Card key={feature.title}>
-            <CardHeader>
-              <feature.icon className="h-5 w-5 text-primary" />
-              <CardTitle>{feature.title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CardDescription>{feature.description}</CardDescription>
-            </CardContent>
-          </Card>
+      <div className="mt-14 grid gap-4 md:grid-cols-2">
+        {sections.map((section) => (
+          <article
+            key={section.title}
+            className="rounded-2xl border border-border bg-card p-7 shadow-card"
+          >
+            <span className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10 text-primary">
+              <section.icon className="h-5 w-5" />
+            </span>
+            <h2 className="mt-5 text-xl">{section.title}</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">{section.body}</p>
+          </article>
         ))}
       </div>
 
-      <div className="mt-10 rounded-lg border bg-muted/40 p-5 sm:flex sm:items-center sm:justify-between sm:gap-6">
-        <div>
-          <h2 className="font-semibold">Ready to organize this year?</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Start with one property and add more reporting details as you go.
-          </p>
-        </div>
-        <Button asChild className="mt-5 sm:mt-0">
-          <Link href="/signup">Create account</Link>
+      <div className="mt-12">
+        <DisclaimerBlock />
+      </div>
+
+      <div className="mt-12 text-center">
+        <Button asChild size="lg">
+          <Link href="/signup">
+            <Sparkles className="h-4 w-4" />
+            Try HostReport free
+          </Link>
         </Button>
       </div>
     </section>

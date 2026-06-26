@@ -52,7 +52,7 @@ export function PropertyForm({ property }: { property?: PropertyRow }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="grid gap-4 rounded-lg border bg-background p-4"
+      className="grid gap-4 rounded-2xl border border-border bg-card p-5 shadow-card"
     >
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="Property name">
