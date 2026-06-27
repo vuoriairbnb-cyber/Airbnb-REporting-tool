@@ -46,6 +46,24 @@ function getSubscriptionPriceId(subscription: Stripe.Subscription) {
   return subscription.items.data[0]?.price?.id ?? null;
 }
 
+function getSubscriptionPeriod(subscription: Stripe.Subscription) {
+  const firstItem = subscription.items.data[0] as
+    | (Stripe.SubscriptionItem & {
+        current_period_start?: number | null;
+        current_period_end?: number | null;
+      })
+    | undefined;
+  const subscriptionWithPeriod = subscription as Stripe.Subscription & {
+    current_period_start?: number | null;
+    current_period_end?: number | null;
+  };
+
+  return {
+    start: subscriptionWithPeriod.current_period_start ?? firstItem?.current_period_start,
+    end: subscriptionWithPeriod.current_period_end ?? firstItem?.current_period_end
+  };
+}
+
 async function findSubscriptionByUserId(userId: string) {
   const admin = createAdminClient() as unknown as SupabaseReportingClient;
   const { data, error } = await admin
@@ -117,6 +135,7 @@ async function applySubscriptionObject(subscription: Stripe.Subscription) {
   }
 
   const existing = await findSubscriptionByUserId(userId);
+  const period = getSubscriptionPeriod(subscription);
 
   await upsertSubscription({
     userId,
@@ -125,8 +144,8 @@ async function applySubscriptionObject(subscription: Stripe.Subscription) {
     stripePriceId: priceId,
     plan: mappedPlan ?? existing?.plan ?? "free",
     status: normalizeStatus(subscription.status),
-    currentPeriodStart: toIsoTimestamp(subscription.current_period_start),
-    currentPeriodEnd: toIsoTimestamp(subscription.current_period_end),
+    currentPeriodStart: toIsoTimestamp(period.start),
+    currentPeriodEnd: toIsoTimestamp(period.end),
     cancelAtPeriodEnd: subscription.cancel_at_period_end
   });
 }
@@ -174,6 +193,20 @@ async function applyInvoiceEvent(invoice: Stripe.Invoice) {
   await applySubscriptionObject(subscription);
 }
 
+async function applyInvoicePaymentEvent(invoicePayment: {
+  invoice?: string | { id?: string | null } | null;
+}) {
+  const invoiceId =
+    typeof invoicePayment.invoice === "string"
+      ? invoicePayment.invoice
+      : invoicePayment.invoice?.id;
+
+  if (!invoiceId) return;
+
+  const invoice = await getStripeClient().invoices.retrieve(invoiceId);
+  await applyInvoiceEvent(invoice);
+}
+
 export function constructStripeEvent(payload: string, signature: string) {
   const webhookSecret = getStripeWebhookSecret();
 
@@ -185,7 +218,9 @@ export function constructStripeEvent(payload: string, signature: string) {
 }
 
 export async function handleStripeWebhookEvent(event: Stripe.Event) {
-  switch (event.type) {
+  const eventType: string = event.type;
+
+  switch (eventType) {
     case "checkout.session.completed":
       await applyCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
       return;
@@ -197,6 +232,10 @@ export async function handleStripeWebhookEvent(event: Stripe.Event) {
     case "invoice.payment_succeeded":
     case "invoice.payment_failed":
       await applyInvoiceEvent(event.data.object as Stripe.Invoice);
+      return;
+    case "invoice_payment.paid":
+    case "invoice_payment.payment_failed":
+      await applyInvoicePaymentEvent(event.data.object as { invoice?: string | null });
       return;
     default:
       return;
