@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAiProviderName, getReceiptParser } from "@/lib/ai";
+import { isAiScanMode, normalizeAiScanMode } from "@/lib/ai/scan-modes";
+import type { AiScanMode, AnyAiScanMode } from "@/lib/ai/types";
 import {
   calculateCandidateReportableAmount,
   normalizeAllocationPercentage
@@ -13,14 +15,23 @@ import { getCategories, getCurrentUserId } from "@/server/reporting/queries";
 import type { ReceiptRow, SourceDocumentRow } from "@/server/reporting/types";
 
 const reparseReceiptSchema = z.object({
-  receiptId: z.string().uuid()
+  receiptId: z.string().uuid(),
+  scanMode: z
+    .preprocess(
+      (value) => {
+        if (value === "" || value === null || value === undefined) return "plus";
+        return value;
+      },
+      z.custom<AnyAiScanMode>((value) => isAiScanMode(value), "Invalid scan mode.")
+    )
+    .transform((value) => normalizeAiScanMode(value))
 });
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
   if (typeof error === "string") return error;
 
-  return "Accurate receipt scan failed.";
+  return "Plus scan failed.";
 }
 
 async function hasAiConsent(db: SupabaseReportingClient, userId: string) {
@@ -68,11 +79,12 @@ async function markFailure({
 async function recordUsage(
   db: SupabaseReportingClient,
   userId: string,
+  scanMode: "standard" | "plus" | "pro",
   metadata: Record<string, unknown>
 ) {
   await db.from("usage_events").insert({
     user_id: userId,
-    event_type: "ai_scan_accurate",
+    event_type: `ai_scan_${scanMode}`,
     metadata
   });
 }
@@ -88,10 +100,11 @@ export async function POST(request: Request) {
     return apiError(parsed.error ?? "Invalid receipt re-scan request.");
   }
 
-  const scanAccess = await canRunAiScan(userId, "accurate");
+  const scanMode = parsed.data.scanMode as AiScanMode;
+  const scanAccess = await canRunAiScan(userId, scanMode);
 
   if (!scanAccess.allowed) {
-    return apiError(scanAccess.reason ?? "Accurate scan is not available.", 403);
+    return apiError(scanAccess.reason ?? "Receipt scan is not available.", 403);
   }
 
   const supabase = await createClient();
@@ -109,7 +122,7 @@ export async function POST(request: Request) {
   const sourceDocument = receipt.source_documents as SourceDocumentRow | null;
 
   if (!sourceDocument?.original_file_path) {
-    return apiError("Original receipt file is not available for accurate scan.", 400);
+    return apiError("Original receipt file is not available for Plus scan.", 400);
   }
 
   if (getAiProviderName() !== "mock" && !(await hasAiConsent(db, userId))) {
@@ -151,7 +164,7 @@ export async function POST(request: Request) {
       fileBuffer: Buffer.from(await download.data.arrayBuffer()),
       mimeType: sourceDocument.mime_type ?? "application/octet-stream",
       fileName: sourceDocument.original_file_name ?? undefined,
-      scanMode: "accurate",
+      scanMode,
       currencyHint: "EUR",
       categoryHints: categories.map((category) => category.name)
     });
@@ -195,7 +208,7 @@ export async function POST(request: Request) {
           allocation_percentage: allocationPercentage,
           candidate_reportable_amount: candidateReportableAmount,
           status: "draft",
-          notes: "Updated from accurate receipt scan. Review before reporting.",
+          notes: "Updated from Plus scan. Review before reporting.",
           items: result.receipt.items
         })
         .eq("id", receipt.expense_entry_id)
@@ -207,7 +220,7 @@ export async function POST(request: Request) {
       .update({ status: "processed", error_message: null })
       .eq("id", sourceDocument.id)
       .eq("user_id", userId);
-    await recordUsage(db, userId, {
+    await recordUsage(db, userId, result.scanMode, {
       provider: result.provider,
       model: result.model,
       receiptId: receipt.id,
@@ -217,6 +230,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ data: { receiptId: receipt.id } });
   } catch (error) {
     const message = getErrorMessage(error);
+    logServerError(`ai.reparse.provider.${getAiProviderName()}.${scanMode}`, error);
     await markFailure({
       db,
       receiptId: receipt.id,
@@ -225,9 +239,6 @@ export async function POST(request: Request) {
       message
     });
 
-    return apiError(
-      "Could not run accurate receipt scan. Add the expense manually or try again.",
-      500
-    );
+    return apiError("Unable to parse receipt with AI.", 500);
   }
 }

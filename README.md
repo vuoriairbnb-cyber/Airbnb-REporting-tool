@@ -44,6 +44,9 @@ SUPABASE_SERVICE_ROLE_KEY=
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 OPENAI_API_KEY=
+AI_STANDARD_SCAN_MODEL=
+AI_PLUS_SCAN_MODEL=
+AI_PRO_SCAN_MODEL=
 ANTHROPIC_API_KEY=
 ```
 
@@ -99,3 +102,12 @@ supabase/seed.sql
 - Receipt and report buckets are private.
 - Downloads should use signed URLs.
 - AI receipt extraction must require user review before creating reviewed expenses.
+
+## AI Scan Tiers
+
+- Standard uses `AI_STANDARD_SCAN_MODEL`.
+- Plus uses `AI_PLUS_SCAN_MODEL`.
+- Pro uses `AI_PRO_SCAN_MODEL`.
+- All scan tiers use the same server-only `OPENAI_API_KEY`.
+- First deploy should use `AI_PROVIDER=mock`.
+- Set `AI_PROVIDER=openai` only after Stripe, Supabase and deploy flows are verified.

@@ -37,7 +37,7 @@ function inferConfidence(
     (field) => field !== null && field !== undefined && field !== ""
   ).length;
   const base = populated / fields.length;
-  const scanModeBoost = scanMode === "accurate" ? 0.12 : 0;
+  const scanModeBoost = scanMode === "pro" ? 0.16 : scanMode === "plus" ? 0.12 : 0;
 
   return Math.max(0.35, Math.min(0.95, Number((base + scanModeBoost).toFixed(2))));
 }

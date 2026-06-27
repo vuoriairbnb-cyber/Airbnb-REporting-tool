@@ -5,7 +5,8 @@ import {
   RECEIPT_PARSER_SYSTEM_PROMPT
 } from "@/lib/ai/prompts/receipt-parser";
 import { receiptParserJsonSchema } from "@/lib/ai/schemas/receipt.schema";
-import type { ReceiptParser, ScanMode } from "@/lib/ai/types";
+import { getAiModelForScanMode } from "@/lib/ai/model-config";
+import type { ReceiptParser } from "@/lib/ai/types";
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 
@@ -26,16 +27,6 @@ const openAiResponseSchema = z.object({
     )
     .optional()
 });
-
-function getOpenAiModel(scanMode: ScanMode) {
-  const fallback = scanMode === "accurate" ? "gpt-4.1" : "gpt-4.1-mini";
-
-  return (
-    (scanMode === "accurate"
-      ? process.env.AI_ACCURATE_MODEL
-      : process.env.AI_FAST_MODEL) ?? fallback
-  );
-}
 
 function getResponseText(response: unknown) {
   const parsed = openAiResponseSchema.parse(response);
@@ -74,7 +65,7 @@ export const parseReceiptWithOpenAI: ReceiptParser = async (input) => {
     throw new Error("OpenAI API key is missing.");
   }
 
-  const model = getOpenAiModel(input.scanMode);
+  const model = getAiModelForScanMode(input.scanMode);
   const response = await fetch(OPENAI_RESPONSES_URL, {
     method: "POST",
     headers: {

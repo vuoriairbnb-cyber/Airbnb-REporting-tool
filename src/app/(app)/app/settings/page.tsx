@@ -181,8 +181,8 @@ export default async function SettingsPage() {
       >
         <AiConsentControl initialConsentAt={account.aiProcessingConsentAt} />
         <StatusRow
-          label="Accurate scan mode"
-          description="Accurate scan can be used after AI processing consent is enabled."
+          label="Plus scan"
+          description="More careful extraction for unclear receipts."
           status="Preview"
           tone="bg-warm/20 text-warm-foreground"
         />

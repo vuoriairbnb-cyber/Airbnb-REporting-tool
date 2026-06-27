@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAiProviderName, getReceiptParser } from "@/lib/ai";
+import type { AiScanMode } from "@/lib/ai/types";
 import {
   calculateCandidateReportableAmount,
   normalizeAllocationPercentage
@@ -52,7 +53,7 @@ async function markReceiptFailed(
 async function recordAiUsage(
   db: SupabaseReportingClient,
   userId: string,
-  eventType: "ai_scan_fast" | "ai_scan_accurate",
+  eventType: `ai_scan_${AiScanMode}`,
   metadata: Record<string, unknown>
 ) {
   await db.from("usage_events").insert({
@@ -71,7 +72,8 @@ export async function POST(request: Request) {
 
   if (parsed.error || !parsed.data) return apiError(parsed.error ?? "Invalid receipt.");
 
-  const scanAccess = await canRunAiScan(userId, parsed.data.scanMode ?? "fast");
+  const scanMode = parsed.data.scanMode as AiScanMode;
+  const scanAccess = await canRunAiScan(userId, scanMode);
 
   if (!scanAccess.allowed) {
     return apiError(scanAccess.reason ?? "Receipt scan is not available.", 403);
@@ -142,7 +144,7 @@ export async function POST(request: Request) {
       fileBuffer,
       mimeType: documentRow.mime_type ?? "application/octet-stream",
       fileName: documentRow.original_file_name ?? undefined,
-      scanMode: parsed.data.scanMode ?? "fast",
+      scanMode,
       currencyHint: "EUR",
       categoryHints: categories.map((category) => category.name)
     });
@@ -240,22 +242,18 @@ export async function POST(request: Request) {
       .eq("id", documentRow.id)
       .eq("user_id", userId);
 
-    await recordAiUsage(
-      db,
-      userId,
-      result.scanMode === "accurate" ? "ai_scan_accurate" : "ai_scan_fast",
-      {
-        provider: result.provider,
-        model: result.model,
-        sourceDocumentId: documentRow.id,
-        receiptId: receipt.id,
-        expenseId: expense.id
-      }
-    );
+    await recordAiUsage(db, userId, `ai_scan_${result.scanMode}`, {
+      provider: result.provider,
+      model: result.model,
+      sourceDocumentId: documentRow.id,
+      receiptId: receipt.id,
+      expenseId: expense.id
+    });
 
     return NextResponse.json({ data: { receiptId: receipt.id, expenseId: expense.id } });
   } catch (error) {
     const message = getErrorMessage(error);
+    logServerError(`ai.parse.provider.${aiProviderName}.${scanMode}`, error);
 
     if (receipt?.id) {
       await markReceiptFailed(db, receipt.id, userId, message);
@@ -263,9 +261,6 @@ export async function POST(request: Request) {
 
     await markSourceDocumentFailed(db, documentRow.id, userId, message);
 
-    return apiError(
-      "Could not parse receipt. Add the expense manually or try another receipt.",
-      500
-    );
+    return apiError("Unable to parse receipt with AI.", 500);
   }
 }

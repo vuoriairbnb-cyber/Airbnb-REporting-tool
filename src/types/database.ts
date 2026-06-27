@@ -29,7 +29,7 @@ export type Database = {
         | "tax_preparation_pdf"
         | "receipt_archive_zip"
         | "full_reporting_zip";
-      ai_scan_mode: "fast" | "accurate";
+      ai_scan_mode: "fast" | "accurate" | "standard" | "plus" | "pro";
       subscription_status:
         | "trialing"
         | "active"

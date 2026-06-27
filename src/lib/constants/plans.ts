@@ -2,10 +2,12 @@ export type PlanId = "free" | "starter" | "pro";
 
 export type Entitlements = {
   maxProperties: number;
-  monthlyFastScans: number;
-  monthlyAccurateScans: number;
+  monthlyStandardScans: number;
+  monthlyPlusScans: number;
+  monthlyProScans: number;
   monthlyReports: number;
-  canUseAccurateScan: boolean;
+  canUsePlusScan: boolean;
+  canUseProScan: boolean;
   canGenerateZip: boolean;
   canGeneratePdf: boolean;
   canUseCustomCategories: boolean;
@@ -14,30 +16,36 @@ export type Entitlements = {
 export const PLAN_ENTITLEMENTS: Record<PlanId, Entitlements> = {
   free: {
     maxProperties: 1,
-    monthlyFastScans: 5,
-    monthlyAccurateScans: 0,
+    monthlyStandardScans: 5,
+    monthlyPlusScans: 0,
+    monthlyProScans: 0,
     monthlyReports: 1,
-    canUseAccurateScan: false,
+    canUsePlusScan: false,
+    canUseProScan: false,
     canGenerateZip: false,
     canGeneratePdf: false,
     canUseCustomCategories: false
   },
   starter: {
     maxProperties: 2,
-    monthlyFastScans: 40,
-    monthlyAccurateScans: 5,
+    monthlyStandardScans: 40,
+    monthlyPlusScans: 5,
+    monthlyProScans: 0,
     monthlyReports: 10,
-    canUseAccurateScan: true,
+    canUsePlusScan: true,
+    canUseProScan: false,
     canGenerateZip: true,
     canGeneratePdf: true,
     canUseCustomCategories: false
   },
   pro: {
     maxProperties: 10,
-    monthlyFastScans: 150,
-    monthlyAccurateScans: 40,
+    monthlyStandardScans: 150,
+    monthlyPlusScans: 40,
+    monthlyProScans: 20,
     monthlyReports: 50,
-    canUseAccurateScan: true,
+    canUsePlusScan: true,
+    canUseProScan: true,
     canGenerateZip: true,
     canGeneratePdf: true,
     canUseCustomCategories: true

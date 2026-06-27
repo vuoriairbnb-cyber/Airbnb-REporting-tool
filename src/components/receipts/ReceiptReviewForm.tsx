@@ -151,7 +151,7 @@ export function ReceiptReviewForm({
 
     if (!response.ok) {
       const body = await response.json().catch(() => null);
-      setError(body?.error ?? "Could not run accurate receipt scan.");
+      setError(body?.error ?? "Could not run Plus scan.");
       return;
     }
 
@@ -253,7 +253,7 @@ export function ReceiptReviewForm({
                 disabled={isPending || isReparsing}
               >
                 <Sparkles className="h-4 w-4" />
-                {isReparsing ? "Scanning accurately..." : "Scan again accurately"}
+                {isReparsing ? "Running Plus scan..." : "Run Plus scan again"}
               </Button>
             </div>
 

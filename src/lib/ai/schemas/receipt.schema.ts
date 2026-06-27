@@ -40,7 +40,7 @@ export const parsedReceiptSchema = z.object({
 export const parsedReceiptResultSchema = z.object({
   provider: z.enum(["mock", "openai", "anthropic"]),
   model: z.string().trim().min(1),
-  scanMode: z.enum(["fast", "accurate"]),
+  scanMode: z.enum(["standard", "plus", "pro"]),
   receipt: parsedReceiptSchema.extend({
     items: z.array(normalizedParsedReceiptItemSchema),
     confidence: z.number().min(0).max(1)

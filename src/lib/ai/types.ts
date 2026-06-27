@@ -1,5 +1,7 @@
-export type ScanMode = "fast" | "accurate";
-export type AiScanMode = ScanMode;
+export type AiScanMode = "standard" | "plus" | "pro";
+export type LegacyAiScanMode = "fast" | "accurate";
+export type ScanMode = AiScanMode;
+export type AnyAiScanMode = AiScanMode | LegacyAiScanMode;
 export type AiProviderName = "mock" | "openai" | "anthropic";
 export type AiProvider = AiProviderName;
 

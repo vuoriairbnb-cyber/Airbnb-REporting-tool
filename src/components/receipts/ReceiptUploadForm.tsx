@@ -10,12 +10,17 @@ import { createClient } from "@/lib/supabase/client";
 import type { PropertyRow } from "@/server/reporting/types";
 
 const acceptedMimeTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+const scanModeDescriptions = {
+  standard: "Quick receipt extraction for most receipts.",
+  plus: "More careful extraction for unclear receipts.",
+  pro: "Highest accuracy scan for difficult receipts."
+} as const;
 
 export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] }) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [propertyId, setPropertyId] = useState("");
-  const [scanMode, setScanMode] = useState<"fast" | "accurate">("fast");
+  const [scanMode, setScanMode] = useState<"standard" | "plus" | "pro">("standard");
   const [error, setError] = useState<string | null>(null);
   const [needsAiConsent, setNeedsAiConsent] = useState(false);
   const [isPending, setIsPending] = useState(false);
@@ -173,11 +178,17 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
           <select
             className={selectClassName}
             value={scanMode}
-            onChange={(event) => setScanMode(event.target.value as "fast" | "accurate")}
+            onChange={(event) =>
+              setScanMode(event.target.value as "standard" | "plus" | "pro")
+            }
           >
-            <option value="fast">Fast</option>
-            <option value="accurate">Accurate</option>
+            <option value="standard">Standard scan</option>
+            <option value="plus">Plus scan</option>
+            <option value="pro">Pro scan</option>
           </select>
+          <p className="text-xs text-muted-foreground">
+            {scanModeDescriptions[scanMode]}
+          </p>
         </Field>
       </div>
 

@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { isAiScanMode, normalizeAiScanMode } from "@/lib/ai/scan-modes";
+import type { AnyAiScanMode } from "@/lib/ai/types";
 import { allocationMethodSchema } from "@/lib/validation/expenses";
 
 const nullableUuid = z.preprocess((value) => {
@@ -38,7 +40,15 @@ export const createSourceDocumentSchema = z.object({
 
 export const parseReceiptSchema = z.object({
   sourceDocumentId: z.string().uuid(),
-  scanMode: z.enum(["fast", "accurate"]).default("fast")
+  scanMode: z
+    .preprocess(
+      (value) => {
+        if (value === "" || value === null || value === undefined) return "standard";
+        return value;
+      },
+      z.custom<AnyAiScanMode>((value) => isAiScanMode(value), "Invalid scan mode.")
+    )
+    .transform((value) => normalizeAiScanMode(value))
 });
 
 export const reviewReceiptSchema = z.object({

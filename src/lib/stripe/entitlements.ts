@@ -1,4 +1,6 @@
 import "server-only";
+import { normalizeAiScanMode } from "@/lib/ai/scan-modes";
+import type { AiScanMode, AnyAiScanMode } from "@/lib/ai/types";
 import { createClient } from "@/lib/supabase/server";
 import {
   formatPlanName,
@@ -24,7 +26,7 @@ type PlanEntitlements = {
   monthlyReceiptScans: number;
   monthlyReports: number;
   allowedReportTypes: ReportType[];
-  accurateScan: boolean;
+  plusScan: boolean;
 };
 
 export type Entitlements = PlanEntitlements & {
@@ -51,7 +53,7 @@ const planMatrix: Record<BillingPlan, PlanEntitlements> = {
       "allocation_csv",
       "tax_preparation_pdf"
     ],
-    accurateScan: false
+    plusScan: false
   },
   starter: {
     propertyLimit: 2,
@@ -63,7 +65,7 @@ const planMatrix: Record<BillingPlan, PlanEntitlements> = {
       "allocation_csv",
       "tax_preparation_pdf"
     ],
-    accurateScan: false
+    plusScan: false
   },
   pro: {
     propertyLimit: 10,
@@ -77,7 +79,7 @@ const planMatrix: Record<BillingPlan, PlanEntitlements> = {
       "receipt_archive_zip",
       "full_reporting_zip"
     ],
-    accurateScan: true
+    plusScan: true
   }
 };
 
@@ -135,7 +137,10 @@ async function countMonthlyReceiptScans(userId: string) {
   return data.filter(
     (event) =>
       (event as { event_type?: string }).event_type === "ai_scan_fast" ||
-      (event as { event_type?: string }).event_type === "ai_scan_accurate"
+      (event as { event_type?: string }).event_type === "ai_scan_accurate" ||
+      (event as { event_type?: string }).event_type === "ai_scan_standard" ||
+      (event as { event_type?: string }).event_type === "ai_scan_plus" ||
+      (event as { event_type?: string }).event_type === "ai_scan_pro"
   ).length;
 }
 
@@ -210,16 +215,24 @@ export async function canCreateProperty(userId: string): Promise<EntitlementChec
 
 export async function canRunAiScan(
   userId: string,
-  mode: "fast" | "accurate"
+  mode: AnyAiScanMode
 ): Promise<EntitlementCheck> {
   const entitlements = await getEntitlements(userId);
+  const normalizedMode: AiScanMode = normalizeAiScanMode(mode);
 
   if (entitlements.isBillingGateDisabled) return { allowed: true };
 
-  if (mode === "accurate" && !entitlements.accurateScan) {
+  if (normalizedMode === "plus" && !entitlements.plusScan) {
     return {
       allowed: false,
-      reason: "Accurate scan is available on the Pro plan."
+      reason: "Plus scan is available on the Pro plan."
+    };
+  }
+
+  if (normalizedMode === "pro" && entitlements.plan !== "pro") {
+    return {
+      allowed: false,
+      reason: "Pro scan is available on the Pro plan."
     };
   }
 

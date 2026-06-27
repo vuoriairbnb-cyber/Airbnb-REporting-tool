@@ -25,6 +25,8 @@ function chooseTotal(fileName?: string) {
 export const parseReceiptWithMock: ReceiptParser = async (input) => {
   const vendor = chooseVendor(input.fileName);
   const total = chooseTotal(input.fileName);
+  const confidence =
+    input.scanMode === "pro" ? 0.9 : input.scanMode === "plus" ? 0.86 : 0.74;
   const suggestedCategory =
     suggestCategoryFromList({
       suggestedCategory: vendor,
@@ -59,7 +61,7 @@ export const parseReceiptWithMock: ReceiptParser = async (input) => {
           amount: Math.round(total * 0.35 * 100) / 100
         }
       ],
-      confidence: input.scanMode === "accurate" ? 0.86 : 0.74,
+      confidence,
       warnings: ["Mock extraction only. Review every field before reporting."]
     },
     rawResponse: {
