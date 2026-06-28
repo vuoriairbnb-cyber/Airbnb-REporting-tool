@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAiProviderName, getReceiptParser } from "@/lib/ai";
+import { addReviewMetadataToLineItems } from "@/lib/ai/line-items";
 import type { AiScanMode } from "@/lib/ai/types";
 import {
   calculateCandidateReportableAmount,
@@ -152,6 +153,15 @@ export async function POST(request: Request) {
     const suggestedCategory = categories.find(
       (category) => category.name === result.receipt.suggested_category
     );
+    const lineItems = addReviewMetadataToLineItems({
+      items: result.receipt.items,
+      categories,
+      fallbackCategoryName: result.receipt.suggested_category
+    });
+    const normalizedReceipt = {
+      ...result.receipt,
+      items: lineItems
+    };
     const totalAmount = result.receipt.total_amount ?? 0;
     const allocationPercentage = normalizeAllocationPercentage("manual_percentage", 100);
     const candidateReportableAmount = calculateCandidateReportableAmount(
@@ -169,9 +179,9 @@ export async function POST(request: Request) {
         ai_provider: result.provider,
         ai_model: result.model,
         ai_scan_mode: result.scanMode,
-        ai_confidence: result.receipt.confidence,
+        ai_confidence: normalizedReceipt.confidence,
         ai_raw_response: result.rawResponse,
-        ai_normalized_response: result.receipt
+        ai_normalized_response: normalizedReceipt
       })
       .select("*")
       .single();
@@ -203,7 +213,7 @@ export async function POST(request: Request) {
         candidate_reportable_amount: candidateReportableAmount,
         status: "draft",
         notes: "Created from AI receipt extraction. Review before reporting.",
-        items: result.receipt.items
+        items: lineItems
       })
       .select("*")
       .single();

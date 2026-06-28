@@ -28,8 +28,29 @@ type NormalizedReceipt = {
   tax_amount?: number | null;
   currency?: string | null;
   suggested_category?: string | null;
+  items?: unknown;
   confidence?: number | null;
   warnings?: string[];
+};
+
+type ReviewLineItem = {
+  id: string;
+  description: string | null;
+  quantity: number | null;
+  unit_amount: number | null;
+  line_amount: number | null;
+  tax_amount: number | null;
+  amount: number | null;
+  category_hint: string | null;
+  suggested_category_name: string | null;
+  suggested_category_confidence: number | null;
+  confidence: number | null;
+  ai_suggested_category_name: string | null;
+  ai_suggested_category_id: string | null;
+  ai_category_confidence: number | null;
+  user_selected_category_id: string | null;
+  allocation_percentage: number;
+  candidate_reportable_amount: number | null;
 };
 
 const reviewInputClassName = cn(
@@ -57,6 +78,63 @@ function fileTypeLabel(mimeType?: string | null) {
   if (mimeType.startsWith("image/")) return "Image receipt";
 
   return mimeType;
+}
+
+function numberOrNull(value: unknown) {
+  const number = Number(value);
+
+  return Number.isFinite(number) ? number : null;
+}
+
+function stringOrNull(value: unknown) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function readLineItems(value: unknown): ReviewLineItem[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.map((item, index) => {
+    const record =
+      item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+    const lineAmount = numberOrNull(record.line_amount ?? record.amount);
+    const allocationPercentage = normalizeAllocationPercentage(
+      "manual_percentage",
+      numberOrNull(record.allocation_percentage) ?? 100
+    );
+
+    return {
+      id: stringOrNull(record.id) ?? `item-${index + 1}`,
+      description: stringOrNull(record.description),
+      quantity: numberOrNull(record.quantity),
+      unit_amount: numberOrNull(record.unit_amount),
+      line_amount: lineAmount,
+      tax_amount: numberOrNull(record.tax_amount),
+      amount: lineAmount,
+      category_hint: stringOrNull(record.category_hint),
+      suggested_category_name: stringOrNull(record.suggested_category_name),
+      suggested_category_confidence: numberOrNull(record.suggested_category_confidence),
+      confidence: numberOrNull(record.confidence),
+      ai_suggested_category_name:
+        stringOrNull(record.ai_suggested_category_name) ??
+        stringOrNull(record.suggested_category_name) ??
+        stringOrNull(record.category_hint),
+      ai_suggested_category_id: stringOrNull(record.ai_suggested_category_id),
+      ai_category_confidence:
+        numberOrNull(record.ai_category_confidence) ??
+        numberOrNull(record.suggested_category_confidence),
+      user_selected_category_id:
+        stringOrNull(record.user_selected_category_id) ??
+        stringOrNull(record.ai_suggested_category_id),
+      allocation_percentage: allocationPercentage,
+      candidate_reportable_amount:
+        lineAmount === null
+          ? null
+          : calculateCandidateReportableAmount(lineAmount, allocationPercentage)
+    };
+  });
 }
 
 export function ReceiptReviewForm({
@@ -90,6 +168,11 @@ export function ReceiptReviewForm({
   const [allocationPercentage, setAllocationPercentage] = useState(
     String(expense?.allocation_percentage ?? 100)
   );
+  const [lineItems, setLineItems] = useState<ReviewLineItem[]>(() => {
+    const expenseItems = readLineItems(expense?.items);
+
+    return expenseItems.length ? expenseItems : readLineItems(normalized.items);
+  });
   const confidence = receipt.ai_confidence ?? normalized.confidence ?? null;
 
   const normalizedPercentage = useMemo(
@@ -102,6 +185,29 @@ export function ReceiptReviewForm({
       calculateCandidateReportableAmount(Number(totalAmount || 0), normalizedPercentage),
     [totalAmount, normalizedPercentage]
   );
+
+  function updateLineItem(index: number, updates: Partial<ReviewLineItem>) {
+    setLineItems((current) =>
+      current.map((item, itemIndex) => {
+        if (itemIndex !== index) return item;
+
+        const next = { ...item, ...updates };
+        const allocation = normalizeAllocationPercentage(
+          "manual_percentage",
+          Number(next.allocation_percentage || 0)
+        );
+
+        return {
+          ...next,
+          allocation_percentage: allocation,
+          candidate_reportable_amount:
+            next.line_amount === null || next.line_amount === undefined
+              ? null
+              : calculateCandidateReportableAmount(next.line_amount, allocation)
+        };
+      })
+    );
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -121,7 +227,8 @@ export function ReceiptReviewForm({
         currency: formData.get("currency"),
         allocation_method: allocationMethod,
         allocation_percentage: normalizedPercentage,
-        notes: formData.get("notes")
+        notes: formData.get("notes"),
+        line_items: lineItems
       })
     });
 
@@ -325,6 +432,118 @@ export function ReceiptReviewForm({
               </Field>
             </div>
           </div>
+
+          {lineItems.length ? (
+            <div className="rounded-xl border border-border bg-card p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-display text-lg">Line items</h2>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    Review each line item category before saving the expense.
+                  </p>
+                </div>
+                <Pill tone="bg-primary/10 text-primary">Suggested by AI</Pill>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {lineItems.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className="rounded-xl border border-border bg-surface/50 p-3"
+                  >
+                    <div className="grid gap-3 md:grid-cols-[minmax(0,1.4fr)_0.7fr_0.9fr_0.7fr_0.9fr]">
+                      <Field label="Description">
+                        <input
+                          className={reviewInputClassName}
+                          value={item.description ?? ""}
+                          onChange={(event) =>
+                            updateLineItem(index, {
+                              description: event.target.value || null
+                            })
+                          }
+                        />
+                      </Field>
+                      <Field label="Line amount">
+                        <input
+                          className={reviewInputClassName}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.line_amount ?? ""}
+                          onChange={(event) =>
+                            updateLineItem(index, {
+                              line_amount: numberOrNull(event.target.value),
+                              amount: numberOrNull(event.target.value)
+                            })
+                          }
+                        />
+                      </Field>
+                      <Field label="Reviewed category">
+                        <select
+                          className={reviewSelectClassName}
+                          value={item.user_selected_category_id ?? ""}
+                          onChange={(event) =>
+                            updateLineItem(index, {
+                              user_selected_category_id: event.target.value || null
+                            })
+                          }
+                        >
+                          <option value="">Choose category</option>
+                          {categories.map((category) => (
+                            <option key={category.id} value={category.id}>
+                              {category.name}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="Allocation %">
+                        <input
+                          className={reviewInputClassName}
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={item.allocation_percentage}
+                          onChange={(event) =>
+                            updateLineItem(index, {
+                              allocation_percentage: Number(event.target.value || 0)
+                            })
+                          }
+                        />
+                      </Field>
+                      <div className="rounded-lg border border-primary/15 bg-primary/10 p-3">
+                        <p className="text-xs uppercase text-primary">
+                          Candidate reportable amount
+                        </p>
+                        <p className="mt-1 font-display text-lg text-primary">
+                          {formatCurrency(
+                            item.candidate_reportable_amount,
+                            currencyValue
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      {item.ai_suggested_category_name ? (
+                        <span>Suggested by AI: {item.ai_suggested_category_name}</span>
+                      ) : (
+                        <span>No line item category suggestion</span>
+                      )}
+                      {item.tax_amount !== null && item.tax_amount !== undefined ? (
+                        <span>Tax: {formatCurrency(item.tax_amount, currencyValue)}</span>
+                      ) : null}
+                      {item.ai_category_confidence !== null &&
+                      item.ai_category_confidence !== undefined ? (
+                        <span>
+                          Confidence {Math.round(item.ai_category_confidence * 100)}%
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <div className="rounded-xl border border-border bg-card p-4">
             <h2 className="font-display text-lg">Expense allocation</h2>

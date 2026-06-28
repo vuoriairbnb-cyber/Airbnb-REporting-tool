@@ -12,11 +12,20 @@ function normalizeItem(
   item: typeof receiptNormalizationItemSchema._output,
   index: number
 ) {
+  const lineAmount = item.line_amount ?? item.amount;
+
   return {
     id: `item-${index + 1}`,
     description: item.description ?? "Receipt item",
     quantity: item.quantity,
-    amount: item.amount
+    unit_amount: item.unit_amount,
+    line_amount: lineAmount,
+    tax_amount: item.tax_amount,
+    amount: lineAmount,
+    category_hint: item.category_hint,
+    suggested_category_name: item.suggested_category_name ?? item.category_hint,
+    suggested_category_confidence: item.suggested_category_confidence,
+    confidence: item.confidence
   } satisfies ParsedReceiptItem;
 }
 
@@ -68,6 +77,27 @@ export function normalizeReceiptResult({
     warnings.push("Vendor was not detected. Review the receipt manually.");
   }
 
+  const parsedItems = parsed.line_items.length ? parsed.line_items : parsed.items;
+  const items =
+    parsedItems.length || !parsed.total_amount
+      ? parsedItems
+      : [
+          {
+            description: parsed.vendor
+              ? `${parsed.vendor} receipt total`
+              : "Receipt total",
+            quantity: 1,
+            unit_amount: parsed.total_amount,
+            line_amount: parsed.total_amount,
+            tax_amount: parsed.tax_amount,
+            amount: parsed.total_amount,
+            category_hint: parsed.suggested_category,
+            suggested_category_name: parsed.suggested_category,
+            suggested_category_confidence: parsed.confidence,
+            confidence: parsed.confidence
+          }
+        ];
+
   const result = {
     provider,
     model,
@@ -81,7 +111,7 @@ export function normalizeReceiptResult({
       payment_method: parsed.payment_method,
       last4: parsed.last4,
       suggested_category: parsed.suggested_category,
-      items: parsed.items.map(normalizeItem),
+      items: items.map(normalizeItem),
       confidence: inferConfidence(parsed, scanMode),
       warnings
     },

@@ -16,11 +16,24 @@ export const receiptAmountSchema = z.number().nonnegative().nullable();
 export const parsedReceiptItemSchema = z.object({
   description: z.string().trim().nullable(),
   quantity: z.number().nonnegative().nullable(),
-  amount: receiptAmountSchema
+  unit_amount: receiptAmountSchema,
+  line_amount: receiptAmountSchema,
+  tax_amount: receiptAmountSchema,
+  amount: receiptAmountSchema,
+  category_hint: z.string().trim().nullable(),
+  suggested_category_name: z.string().trim().nullable(),
+  suggested_category_confidence: receiptConfidenceSchema,
+  confidence: receiptConfidenceSchema
 });
 
 export const normalizedParsedReceiptItemSchema = parsedReceiptItemSchema.extend({
-  id: z.string().trim().min(1)
+  id: z.string().trim().min(1),
+  ai_suggested_category_name: z.string().trim().nullable().optional(),
+  ai_suggested_category_id: z.string().uuid().nullable().optional(),
+  ai_category_confidence: receiptConfidenceSchema.optional(),
+  user_selected_category_id: z.string().uuid().nullable().optional(),
+  allocation_percentage: z.number().min(0).max(100).optional(),
+  candidate_reportable_amount: receiptAmountSchema.optional()
 });
 
 export const parsedReceiptSchema = z.object({
@@ -69,7 +82,30 @@ const nullableNumber = z
 export const receiptNormalizationItemSchema = z.object({
   description: nullableString,
   quantity: nullableNumber,
-  amount: nullableNumber
+  unit_amount: nullableNumber,
+  line_amount: nullableNumber,
+  tax_amount: nullableNumber,
+  amount: nullableNumber,
+  category_hint: nullableString,
+  suggested_category_name: nullableString,
+  suggested_category_confidence: z
+    .union([z.number(), z.string(), z.null(), z.undefined()])
+    .transform((value) => {
+      const parsed = Number(value);
+
+      if (!Number.isFinite(parsed)) return null;
+
+      return Math.max(0, Math.min(1, parsed));
+    }),
+  confidence: z
+    .union([z.number(), z.string(), z.null(), z.undefined()])
+    .transform((value) => {
+      const parsed = Number(value);
+
+      if (!Number.isFinite(parsed)) return null;
+
+      return Math.max(0, Math.min(1, parsed));
+    })
 });
 
 export const receiptNormalizationSchema = z.object({
@@ -82,6 +118,7 @@ export const receiptNormalizationSchema = z.object({
   last4: nullableString,
   suggested_category: nullableString,
   items: z.array(receiptNormalizationItemSchema).optional().default([]),
+  line_items: z.array(receiptNormalizationItemSchema).optional().default([]),
   confidence: z
     .union([z.number(), z.string(), z.null(), z.undefined()])
     .transform((value) => {
@@ -113,7 +150,7 @@ export const receiptParserJsonSchema = {
     payment_method: { type: ["string", "null"] },
     last4: { type: ["string", "null"] },
     suggested_category: { type: ["string", "null"] },
-    items: {
+    line_items: {
       type: "array",
       items: {
         type: "object",
@@ -121,9 +158,25 @@ export const receiptParserJsonSchema = {
         properties: {
           description: { type: ["string", "null"] },
           quantity: { type: ["number", "null"] },
-          amount: { type: ["number", "null"] }
+          unit_amount: { type: ["number", "null"] },
+          line_amount: { type: ["number", "null"] },
+          tax_amount: { type: ["number", "null"] },
+          category_hint: { type: ["string", "null"] },
+          suggested_category_name: { type: ["string", "null"] },
+          suggested_category_confidence: { type: ["number", "null"] },
+          confidence: { type: ["number", "null"] }
         },
-        required: ["description", "quantity", "amount"]
+        required: [
+          "description",
+          "quantity",
+          "unit_amount",
+          "line_amount",
+          "tax_amount",
+          "category_hint",
+          "suggested_category_name",
+          "suggested_category_confidence",
+          "confidence"
+        ]
       }
     },
     confidence: {
@@ -144,7 +197,7 @@ export const receiptParserJsonSchema = {
     "payment_method",
     "last4",
     "suggested_category",
-    "items",
+    "line_items",
     "confidence",
     "warnings"
   ]

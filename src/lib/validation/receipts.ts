@@ -60,5 +60,33 @@ export const reviewReceiptSchema = z.object({
   currency: z.string().trim().min(3).max(3),
   allocation_method: allocationMethodSchema,
   allocation_percentage: z.coerce.number().min(0).max(100),
-  notes: nullableString
+  notes: nullableString,
+  line_items: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1),
+        description: nullableString,
+        quantity: z.coerce.number().nonnegative().nullable().optional(),
+        unit_amount: z.coerce.number().nonnegative().nullable().optional(),
+        line_amount: z.coerce.number().nonnegative().nullable(),
+        tax_amount: z.coerce.number().nonnegative().nullable().optional(),
+        amount: z.coerce.number().nonnegative().nullable().optional(),
+        category_hint: nullableString.optional(),
+        suggested_category_name: nullableString.optional(),
+        suggested_category_confidence: z.coerce
+          .number()
+          .min(0)
+          .max(1)
+          .nullable()
+          .optional(),
+        confidence: z.coerce.number().min(0).max(1).nullable().optional(),
+        ai_suggested_category_name: nullableString.optional(),
+        ai_suggested_category_id: nullableUuid.optional(),
+        ai_category_confidence: z.coerce.number().min(0).max(1).nullable().optional(),
+        user_selected_category_id: nullableUuid.optional(),
+        allocation_percentage: z.coerce.number().min(0).max(100)
+      })
+    )
+    .optional()
+    .default([])
 });

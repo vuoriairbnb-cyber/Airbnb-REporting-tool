@@ -8,7 +8,7 @@ import { reviewReceiptSchema } from "@/lib/validation/receipts";
 import { apiError, logServerError, parseJsonBody } from "@/server/reporting/api";
 import type { SupabaseReportingClient } from "@/server/reporting/db";
 import { assertExpenseRelations, isOwnershipError } from "@/server/reporting/ownership";
-import { getCurrentUserId } from "@/server/reporting/queries";
+import { getCategories, getCurrentUserId } from "@/server/reporting/queries";
 import type { ReceiptRow } from "@/server/reporting/types";
 
 export async function POST(
@@ -61,11 +61,55 @@ export async function POST(
     allocationPercentage
   );
   const status = parsed.data.allocation_method === "excluded" ? "excluded" : "reviewed";
+  const categories = await getCategories();
+  const allowedCategoryIds = new Set(categories.map((category) => category.id));
+  const lineItems = [];
+
+  for (const item of parsed.data.line_items ?? []) {
+    const selectedCategoryId =
+      typeof item.user_selected_category_id === "string"
+        ? item.user_selected_category_id
+        : null;
+    const suggestedCategoryId =
+      typeof item.ai_suggested_category_id === "string"
+        ? item.ai_suggested_category_id
+        : null;
+
+    if (selectedCategoryId && !allowedCategoryIds.has(selectedCategoryId)) {
+      return apiError("Choose a valid reviewed category for each line item.", 400);
+    }
+
+    const safeSuggestedCategoryId =
+      suggestedCategoryId && allowedCategoryIds.has(suggestedCategoryId)
+        ? suggestedCategoryId
+        : null;
+    const lineAmount = item.line_amount ?? item.amount ?? null;
+    const itemAllocationPercentage = normalizeAllocationPercentage(
+      "manual_percentage",
+      item.allocation_percentage
+    );
+
+    lineItems.push({
+      ...item,
+      line_amount: lineAmount,
+      amount: lineAmount,
+      ai_suggested_category_id: safeSuggestedCategoryId,
+      user_selected_category_id: selectedCategoryId,
+      allocation_percentage: itemAllocationPercentage,
+      candidate_reportable_amount:
+        lineAmount === null
+          ? null
+          : calculateCandidateReportableAmount(lineAmount, itemAllocationPercentage)
+    });
+  }
+  const expenseUpdate = { ...parsed.data };
+  delete (expenseUpdate as Partial<typeof parsed.data>).line_items;
 
   const { data: expense, error: expenseError } = await supabase
     .from("expense_entries")
     .update({
-      ...parsed.data,
+      ...expenseUpdate,
+      items: lineItems,
       allocation_percentage: allocationPercentage,
       candidate_reportable_amount: candidateReportableAmount,
       status

@@ -15,7 +15,7 @@ export const RECEIPT_PARSER_SYSTEM_PROMPT = [
   "5. Currency must be an ISO 4217 code such as EUR, USD, GBP, SEK, NOK, DKK.",
   "6. Monetary values must be numbers, not strings.",
   "7. Preserve line items when visible.",
-  "8. Suggested categories should use the provided category list when possible.",
+  "8. Suggested categories should use the provided category list when possible, including line item category suggestions.",
   "9. Do not provide tax advice.",
   "10. Do not determine legal deductibility.",
   "11. Suggested allocation should be null unless clearly indicated by user context.",
@@ -50,9 +50,11 @@ export function buildReceiptParserUserPrompt({
     "- tax/VAT when visible",
     "- currency",
     "- line items",
+    "- line item category hints from the available categories",
     "- payment method",
     "- last 4 card digits if visible",
     "",
+    "For each visible line item, return description, quantity, unit_amount, line_amount, tax_amount when visible, category_hint, suggested_category_name, suggested_category_confidence and confidence.",
     "Do not guess aggressively. Use null and warnings for uncertain fields."
   ].join("\n");
 }

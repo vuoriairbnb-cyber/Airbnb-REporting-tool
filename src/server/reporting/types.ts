@@ -52,12 +52,14 @@ export type ExpenseEntryRow = {
   vendor: string | null;
   category_id: string | null;
   total_amount: number | null;
+  tax_amount?: number | null;
   currency: string;
   allocation_method: string;
   allocation_percentage: number;
   candidate_reportable_amount: number | null;
   status: ExpenseStatus;
   notes: string | null;
+  items?: unknown;
   properties?: Pick<PropertyRow, "name"> | null;
   categories?: Pick<CategoryRow, "name"> | null;
 };

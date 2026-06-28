@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAiProviderName, getReceiptParser } from "@/lib/ai";
+import { addReviewMetadataToLineItems } from "@/lib/ai/line-items";
 import { isAiScanMode, normalizeAiScanMode } from "@/lib/ai/scan-modes";
 import type { AiScanMode, AnyAiScanMode } from "@/lib/ai/types";
 import {
@@ -171,6 +172,15 @@ export async function POST(request: Request) {
     const suggestedCategory = categories.find(
       (category) => category.name === result.receipt.suggested_category
     );
+    const lineItems = addReviewMetadataToLineItems({
+      items: result.receipt.items,
+      categories,
+      fallbackCategoryName: result.receipt.suggested_category
+    });
+    const normalizedReceipt = {
+      ...result.receipt,
+      items: lineItems
+    };
     const totalAmount = result.receipt.total_amount ?? 0;
     const allocationPercentage = normalizeAllocationPercentage("manual_percentage", 100);
     const candidateReportableAmount = calculateCandidateReportableAmount(
@@ -185,9 +195,9 @@ export async function POST(request: Request) {
         ai_provider: result.provider,
         ai_model: result.model,
         ai_scan_mode: result.scanMode,
-        ai_confidence: result.receipt.confidence,
+        ai_confidence: normalizedReceipt.confidence,
         ai_raw_response: result.rawResponse,
-        ai_normalized_response: result.receipt,
+        ai_normalized_response: normalizedReceipt,
         ai_error_message: null
       })
       .eq("id", receipt.id)
@@ -209,7 +219,7 @@ export async function POST(request: Request) {
           candidate_reportable_amount: candidateReportableAmount,
           status: "draft",
           notes: "Updated from Plus scan. Review before reporting.",
-          items: result.receipt.items
+          items: lineItems
         })
         .eq("id", receipt.expense_entry_id)
         .eq("user_id", userId);

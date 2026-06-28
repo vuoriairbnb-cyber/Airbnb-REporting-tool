@@ -35,6 +35,11 @@ export const parseReceiptWithMock: ReceiptParser = async (input) => {
     input.categoryHints.find((category) => category === "Supplies") ??
     input.categoryHints[0] ??
     null;
+  const supplyCategory =
+    input.categoryHints.find((category) => category === "Supplies") ?? suggestedCategory;
+  const serviceCategory =
+    input.categoryHints.find((category) => category === "Professional services") ??
+    suggestedCategory;
 
   return normalizeReceiptResult({
     provider: "mock",
@@ -53,12 +58,24 @@ export const parseReceiptWithMock: ReceiptParser = async (input) => {
         {
           description: "Rental property supplies",
           quantity: 1,
-          amount: Math.round(total * 0.65 * 100) / 100
+          unit_amount: Math.round(total * 0.65 * 100) / 100,
+          line_amount: Math.round(total * 0.65 * 100) / 100,
+          tax_amount: null,
+          category_hint: supplyCategory,
+          suggested_category_name: supplyCategory,
+          suggested_category_confidence: 0.82,
+          confidence: confidence
         },
         {
           description: "Service fee",
           quantity: 1,
-          amount: Math.round(total * 0.35 * 100) / 100
+          unit_amount: Math.round(total * 0.35 * 100) / 100,
+          line_amount: Math.round(total * 0.35 * 100) / 100,
+          tax_amount: null,
+          category_hint: serviceCategory,
+          suggested_category_name: serviceCategory,
+          suggested_category_confidence: 0.76,
+          confidence: confidence
         }
       ],
       confidence,

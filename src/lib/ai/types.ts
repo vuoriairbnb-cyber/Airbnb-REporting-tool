@@ -9,7 +9,20 @@ export type ParsedReceiptItem = {
   id: string;
   description: string;
   quantity: number | null;
+  unit_amount: number | null;
+  line_amount: number | null;
+  tax_amount: number | null;
   amount: number | null;
+  category_hint: string | null;
+  suggested_category_name: string | null;
+  suggested_category_confidence: number | null;
+  confidence: number | null;
+  ai_suggested_category_name?: string | null;
+  ai_suggested_category_id?: string | null;
+  ai_category_confidence?: number | null;
+  user_selected_category_id?: string | null;
+  allocation_percentage?: number;
+  candidate_reportable_amount?: number | null;
 };
 
 export type ParseReceiptInput = {
