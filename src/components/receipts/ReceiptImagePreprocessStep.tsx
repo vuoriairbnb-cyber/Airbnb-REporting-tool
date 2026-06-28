@@ -7,6 +7,8 @@ import {
   applyManualCrop,
   attemptAutoCropReceipt,
   cleanupPreviewUrl,
+  getRemainingCropArea,
+  isSafeManualCrop,
   type CropPercent,
   type PreprocessingResult
 } from "@/lib/receipts/image-preprocessing";
@@ -65,10 +67,10 @@ export function ReceiptImagePreprocessStep({
   const [isManual, setIsManual] = useState(false);
   const [isApplyingManual, setIsApplyingManual] = useState(false);
   const [manualCrop, setManualCrop] = useState<CropPercent>({
-    left: 6,
-    top: 6,
-    right: 6,
-    bottom: 6
+    left: 0,
+    top: 0,
+    right: 0,
+    bottom: 0
   });
 
   useEffect(() => {
@@ -104,6 +106,11 @@ export function ReceiptImagePreprocessStep({
   }, [result]);
 
   async function applyCrop() {
+    if (!isSafeManualCrop(manualCrop)) {
+      setError("The crop area is too small. Keep the whole receipt visible.");
+      return;
+    }
+
     setIsApplyingManual(true);
     setError(null);
 
@@ -121,6 +128,8 @@ export function ReceiptImagePreprocessStep({
   const previewUrl = result?.processedPreviewUrl ?? result?.originalPreviewUrl;
   const confirmedFile = result?.processedFile ?? file;
   const hasCroppedPreview = result?.status === "cropped" && result.processedPreviewUrl;
+  const remainingCropArea = getRemainingCropArea(manualCrop);
+  const manualCropIsSafe = isSafeManualCrop(manualCrop);
 
   if (isPreparing) {
     return (
@@ -182,12 +191,11 @@ export function ReceiptImagePreprocessStep({
           <div className="grid gap-4 md:grid-cols-2">
             {(["left", "right", "top", "bottom"] as const).map((side) => (
               <label key={side} className="grid gap-2 text-sm font-medium">
-                {side[0].toUpperCase()}
-                {side.slice(1)} crop: {manualCrop[side]}%
+                Remove from {side}: {manualCrop[side]}%
                 <input
                   type="range"
                   min="0"
-                  max="40"
+                  max={side === "left" || side === "right" ? "35" : "28"}
                   value={manualCrop[side]}
                   onChange={(event) =>
                     setManualCrop((current) => ({
@@ -199,10 +207,31 @@ export function ReceiptImagePreprocessStep({
               </label>
             ))}
           </div>
+          <div className="mt-3 rounded-lg border border-border bg-card p-3 text-sm text-muted-foreground">
+            Crop keeps about {Math.round(remainingCropArea.width)}% width and{" "}
+            {Math.round(remainingCropArea.height)}% height. Keep the full receipt inside
+            the green box.
+            {!manualCropIsSafe ? (
+              <p className="mt-1 text-destructive">
+                This crop is too tight. Widen it before applying.
+              </p>
+            ) : null}
+          </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button type="button" onClick={applyCrop} disabled={isApplyingManual}>
+            <Button
+              type="button"
+              onClick={applyCrop}
+              disabled={isApplyingManual || !manualCropIsSafe}
+            >
               <Crop className="h-4 w-4" />
               {isApplyingManual ? "Applying..." : "Apply crop"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setManualCrop({ left: 0, top: 0, right: 0, bottom: 0 })}
+            >
+              Reset crop
             </Button>
             <Button type="button" variant="outline" onClick={() => setIsManual(false)}>
               Cancel
@@ -242,7 +271,9 @@ export function ReceiptImagePreprocessStep({
           variant="outline"
           disabled={isPending}
           onClick={() => {
-            setManualCrop(result?.cropPercent ?? manualCrop);
+            setManualCrop(
+              result?.cropPercent ?? { left: 0, top: 0, right: 0, bottom: 0 }
+            );
             setIsManual(true);
           }}
         >

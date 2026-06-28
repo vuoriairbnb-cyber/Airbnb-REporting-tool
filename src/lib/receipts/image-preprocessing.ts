@@ -29,6 +29,8 @@ const PREPROCESSING_VERSION = "receipt-image-preprocessing-v1";
 const MAX_DIMENSION = 2000;
 const WORKING_MAX_DIMENSION = 900;
 const JPEG_QUALITY = 0.84;
+const MIN_MANUAL_WIDTH_PERCENT = 30;
+const MIN_MANUAL_HEIGHT_PERCENT = 45;
 
 export function isProcessableReceiptImage(file: File) {
   return PROCESSABLE_IMAGE_TYPES.includes(file.type);
@@ -137,6 +139,41 @@ function luminance(r: number, g: number, b: number) {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
+export function getRemainingCropArea(crop: CropPercent) {
+  return {
+    width: Math.max(0, 100 - crop.left - crop.right),
+    height: Math.max(0, 100 - crop.top - crop.bottom)
+  };
+}
+
+export function isSafeManualCrop(crop: CropPercent) {
+  const area = getRemainingCropArea(crop);
+
+  return (
+    area.width >= MIN_MANUAL_WIDTH_PERCENT && area.height >= MIN_MANUAL_HEIGHT_PERCENT
+  );
+}
+
+function expandCrop(crop: CropPercent, minimumWidth: number, minimumHeight: number) {
+  const next = { ...crop };
+  const width = 100 - next.left - next.right;
+  const height = 100 - next.top - next.bottom;
+
+  if (width < minimumWidth) {
+    const needed = minimumWidth - width;
+    next.left = Math.max(0, next.left - Math.ceil(needed / 2));
+    next.right = Math.max(0, next.right - Math.floor(needed / 2));
+  }
+
+  if (height < minimumHeight) {
+    const needed = minimumHeight - height;
+    next.top = Math.max(0, next.top - Math.ceil(needed / 2));
+    next.bottom = Math.max(0, next.bottom - Math.floor(needed / 2));
+  }
+
+  return next;
+}
+
 function detectReceiptCrop(canvas: HTMLCanvasElement) {
   const context = canvas.getContext("2d", { willReadFrequently: true });
   if (!context) return null;
@@ -144,11 +181,16 @@ function detectReceiptCrop(canvas: HTMLCanvasElement) {
   const { width, height } = canvas;
   const data = context.getImageData(0, 0, width, height).data;
   const step = Math.max(2, Math.floor(Math.max(width, height) / 450));
-  let minX = width;
-  let minY = height;
-  let maxX = 0;
-  let maxY = 0;
-  let marked = 0;
+  let paperMinX = width;
+  let paperMinY = height;
+  let paperMaxX = 0;
+  let paperMaxY = 0;
+  let paperMarked = 0;
+  let contentMinX = width;
+  let contentMinY = height;
+  let contentMaxX = 0;
+  let contentMaxY = 0;
+  let contentMarked = 0;
 
   for (let y = 0; y < height; y += step) {
     for (let x = 0; x < width; x += step) {
@@ -160,21 +202,36 @@ function detectReceiptCrop(canvas: HTMLCanvasElement) {
       const minChannel = Math.min(r, g, b);
       const colorSpread = maxChannel - minChannel;
       const lightness = luminance(r, g, b);
+      const isLikelyPaper = lightness > 142 && colorSpread < 74;
       const isLikelyContent = lightness < 242 || colorSpread > 26;
 
+      if (isLikelyPaper) {
+        paperMinX = Math.min(paperMinX, x);
+        paperMinY = Math.min(paperMinY, y);
+        paperMaxX = Math.max(paperMaxX, x);
+        paperMaxY = Math.max(paperMaxY, y);
+        paperMarked += 1;
+      }
+
       if (isLikelyContent) {
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x);
-        maxY = Math.max(maxY, y);
-        marked += 1;
+        contentMinX = Math.min(contentMinX, x);
+        contentMinY = Math.min(contentMinY, y);
+        contentMaxX = Math.max(contentMaxX, x);
+        contentMaxY = Math.max(contentMaxY, y);
+        contentMarked += 1;
       }
     }
   }
 
-  if (!marked) return null;
+  const usePaperBounds = paperMarked > 24;
+  let minX = usePaperBounds ? paperMinX : contentMinX;
+  let minY = usePaperBounds ? paperMinY : contentMinY;
+  let maxX = usePaperBounds ? paperMaxX : contentMaxX;
+  let maxY = usePaperBounds ? paperMaxY : contentMaxY;
 
-  const padding = Math.round(Math.min(width, height) * 0.045);
+  if (!(usePaperBounds ? paperMarked : contentMarked)) return null;
+
+  const padding = Math.round(Math.min(width, height) * (usePaperBounds ? 0.08 : 0.045));
   minX = Math.max(0, minX - padding);
   minY = Math.max(0, minY - padding);
   maxX = Math.min(width, maxX + padding);
@@ -186,18 +243,25 @@ function detectReceiptCrop(canvas: HTMLCanvasElement) {
   const marginRatio = (minX + minY + (width - maxX) + (height - maxY)) / (width + height);
   const confidence = Math.max(
     0,
-    Math.min(0.92, 0.35 + marginRatio * 1.4 + (areaRatio > 0.18 ? 0.12 : 0))
+    Math.min(
+      0.92,
+      (usePaperBounds ? 0.52 : 0.35) + marginRatio * 1.2 + (areaRatio > 0.08 ? 0.1 : 0)
+    )
   );
 
-  if (areaRatio < 0.16 || areaRatio > 0.98 || confidence < 0.48) return null;
+  if (areaRatio < 0.035 || areaRatio > 0.98 || confidence < 0.48) return null;
 
   return {
-    cropPercent: {
-      left: Math.round((minX / width) * 100),
-      top: Math.round((minY / height) * 100),
-      right: Math.round(((width - maxX) / width) * 100),
-      bottom: Math.round(((height - maxY) / height) * 100)
-    },
+    cropPercent: expandCrop(
+      {
+        left: Math.round((minX / width) * 100),
+        top: Math.round((minY / height) * 100),
+        right: Math.round(((width - maxX) / width) * 100),
+        bottom: Math.round(((height - maxY) / height) * 100)
+      },
+      MIN_MANUAL_WIDTH_PERCENT,
+      MIN_MANUAL_HEIGHT_PERCENT
+    ),
     confidence
   };
 }
@@ -217,6 +281,10 @@ export async function applyManualCrop(
   file: File,
   cropPercent: CropPercent
 ): Promise<PreprocessingResult> {
+  if (!isSafeManualCrop(cropPercent)) {
+    throw new Error("The crop area is too small. Keep more of the receipt visible.");
+  }
+
   const image = await loadImageFromFile(file);
   const resizedCanvas = resizeImageToCanvas(image, MAX_DIMENSION);
   const croppedCanvas = cropCanvas(resizedCanvas, cropPercent);
