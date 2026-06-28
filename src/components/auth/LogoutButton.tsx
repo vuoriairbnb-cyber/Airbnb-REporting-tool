@@ -9,11 +9,21 @@ import { createClient } from "@/lib/supabase/client";
 export function LogoutButton({
   variant = "outline",
   size = "sm",
-  className
+  className,
+  labels = {
+    logout: "Log out",
+    loggingOut: "Logging out...",
+    error: "Could not log out."
+  }
 }: {
   variant?: "default" | "outline" | "ghost";
   size?: "default" | "sm" | "lg" | "icon";
   className?: string;
+  labels?: {
+    logout: string;
+    loggingOut: string;
+    error: string;
+  };
 }) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
@@ -42,7 +52,7 @@ export function LogoutButton({
     setIsPending(false);
 
     if (browserError || serverError) {
-      setError(serverError?.error ?? browserError?.message ?? "Could not log out.");
+      setError(serverError?.error ?? browserError?.message ?? labels.error);
       return;
     }
 
@@ -61,7 +71,7 @@ export function LogoutButton({
         disabled={isPending}
       >
         <LogOut className="h-4 w-4" />
-        {isPending ? "Logging out..." : "Log out"}
+        {isPending ? labels.loggingOut : labels.logout}
       </Button>
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>

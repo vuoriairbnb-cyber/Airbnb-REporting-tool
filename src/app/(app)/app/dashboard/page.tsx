@@ -3,6 +3,7 @@ import { ArrowUpRight, FileText, Receipt, ScanLine, TrendingUp } from "lucide-re
 import { DashboardCard, Pill, SectionCard } from "@/components/app/primitives";
 import { DisclaimerBlock } from "@/components/marketing/DisclaimerBlock";
 import { formatCurrency } from "@/lib/format";
+import { getI18n } from "@/lib/i18n/server";
 import {
   getDashboardSummary,
   getExpenseEntries,
@@ -16,13 +17,6 @@ import type {
 } from "@/server/reporting/types";
 
 const monthLabels = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
-
-const quickActions = [
-  { href: "/app/income/new", label: "Add income", icon: TrendingUp },
-  { href: "/app/expenses/new", label: "Add expense", icon: Receipt },
-  { href: "/app/receipts/upload", label: "Upload receipt", icon: ScanLine },
-  { href: "/app/reports", label: "Generate report", icon: FileText }
-] as const;
 
 type ActivityRow =
   | (IncomeEntryRow & { kind: "income" })
@@ -118,6 +112,7 @@ function statusTone(status: string) {
 }
 
 export default async function DashboardPage() {
+  const { t } = await getI18n();
   const { year, dateFrom, dateTo } = currentYearRange();
   const [summary, incomeEntries, expenseEntries, receipts] = await Promise.all([
     getDashboardSummary(),
@@ -129,27 +124,33 @@ export default async function DashboardPage() {
   const receiptsNeedingReview = countReceiptsNeedingReview(receipts);
   const activityRows = getActivityRows(incomeEntries, expenseEntries);
   const monthlySeries = getMonthlySeries(incomeEntries, expenseEntries);
+  const quickActions = [
+    { href: "/app/income/new", label: t.app.addIncome, icon: TrendingUp },
+    { href: "/app/expenses/new", label: t.app.addExpense, icon: Receipt },
+    { href: "/app/receipts/upload", label: t.app.uploadReceipt, icon: ScanLine },
+    { href: "/app/reports", label: t.app.generateReport, icon: FileText }
+  ] as const;
 
   return (
     <div className="space-y-6">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <DashboardCard
-          label={`Rental income · ${year}`}
+          label={`${t.app.rentalIncomeThisYear} · ${year}`}
           value={formatCurrency(summary.rentalIncomeThisYear)}
           hint="Manual income entries this year"
         />
         <DashboardCard
-          label={`Expenses · ${year}`}
+          label={`${t.app.expensesThisYear} · ${year}`}
           value={formatCurrency(summary.expensesThisYear)}
           hint="Recorded before allocation"
         />
         <DashboardCard
-          label="Candidate reportable"
+          label={t.app.candidateReportable}
           value={formatCurrency(summary.candidateReportableExpenses)}
           hint="From your allocations"
         />
         <DashboardCard
-          label="Estimated rental result"
+          label={t.app.estimatedRentalResult}
           value={formatCurrency(summary.estimatedRentalResult)}
           hint="Income minus candidate reportable"
           tone="primary"
@@ -158,13 +159,13 @@ export default async function DashboardPage() {
 
       <div className="grid gap-3 md:grid-cols-2">
         <DashboardCard
-          label="Receipts needing review"
+          label={t.app.receiptsNeedingReview}
           value={String(receiptsNeedingReview)}
           hint="Action recommended"
           tone="warm"
         />
         <DashboardCard
-          label="Expenses missing allocation"
+          label={t.app.expensesMissingAllocation}
           value={String(summary.expensesMissingAllocation)}
           hint="Set an expense allocation percentage"
           tone="warm"
@@ -173,7 +174,7 @@ export default async function DashboardPage() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <SectionCard
-          title="Income vs expenses"
+          title={t.app.incomeVsExpenses}
           className="lg:col-span-2"
           action={<span className="text-xs text-muted-foreground">Monthly · {year}</span>}
         >
@@ -190,7 +191,7 @@ export default async function DashboardPage() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Quick actions">
+        <SectionCard title={t.app.quickActions}>
           <div className="grid grid-cols-2 gap-2">
             {quickActions.map((action) => (
               <Link
@@ -209,7 +210,7 @@ export default async function DashboardPage() {
       </div>
 
       <SectionCard
-        title="Recent activity"
+        title={t.app.recentActivity}
         action={
           <Link
             href="/app/expenses"

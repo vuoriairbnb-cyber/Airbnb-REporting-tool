@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   CreditCard,
+  Globe2,
   ShieldAlert,
   Smartphone,
   Sparkles,
@@ -12,10 +13,12 @@ import {
 } from "lucide-react";
 import { Pill } from "@/components/app/primitives";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_EXPENSE_CATEGORIES } from "@/lib/constants/categories";
 import { getEntitlements } from "@/lib/stripe/entitlements";
 import { createClient } from "@/lib/supabase/server";
+import { getI18n } from "@/lib/i18n/server";
 import { AiConsentControl } from "@/components/settings/AiConsentControl";
 import { DisclaimerStatusControl } from "@/components/settings/DisclaimerStatusControl";
 import type { SupabaseReportingClient } from "@/server/reporting/db";
@@ -29,6 +32,7 @@ async function getAccountInfo() {
     let aiProcessingConsentAt: string | null = null;
     let disclaimerAcceptedAt: string | null = null;
     let defaultCurrency = "EUR";
+    let language = "en";
     let billingPlan = "Free";
     let billingStatus = "none";
     let billingGateDisabled = false;
@@ -36,7 +40,9 @@ async function getAccountInfo() {
     if (user?.id) {
       const { data: profile } = await (supabase as unknown as SupabaseReportingClient)
         .from("profiles")
-        .select("ai_processing_consent_at,disclaimer_accepted_at,default_currency")
+        .select(
+          "ai_processing_consent_at,disclaimer_accepted_at,default_currency,language"
+        )
         .eq("id", user.id)
         .single();
 
@@ -55,6 +61,12 @@ async function getAccountInfo() {
             default_currency?: string | null;
           } | null
         )?.default_currency ?? "EUR";
+      language =
+        (
+          profile as {
+            language?: string | null;
+          } | null
+        )?.language ?? "en";
 
       const entitlements = await getEntitlements(user.id);
       billingPlan = entitlements.planLabel;
@@ -71,6 +83,7 @@ async function getAccountInfo() {
       aiProcessingConsentAt,
       disclaimerAcceptedAt,
       defaultCurrency,
+      language,
       billingPlan,
       billingStatus,
       billingGateDisabled
@@ -82,6 +95,7 @@ async function getAccountInfo() {
       aiProcessingConsentAt: null,
       disclaimerAcceptedAt: null,
       defaultCurrency: "EUR",
+      language: "en",
       billingPlan: "Free",
       billingStatus: "none",
       billingGateDisabled: false
@@ -91,23 +105,33 @@ async function getAccountInfo() {
 
 export default async function SettingsPage() {
   const account = await getAccountInfo();
+  const { locale, t } = await getI18n();
 
   return (
     <div className="space-y-5">
       <div className="min-w-0">
-        <p className="text-sm text-muted-foreground">Workspace settings</p>
-        <h1 className="mt-1 font-display text-2xl leading-tight md:text-3xl">Settings</h1>
+        <p className="text-sm text-muted-foreground">{t.settings.eyebrow}</p>
+        <h1 className="mt-1 font-display text-2xl leading-tight md:text-3xl">
+          {t.settings.title}
+        </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Manage account details, billing, categories, consent, disclaimers and the mobile
-          install guide for reporting preparation.
+          {t.settings.body}
         </p>
       </div>
 
       <SettingsSection
         icon={User}
-        title="Profile"
-        description="Your account and workspace details."
-        action={<LogoutButton />}
+        title={t.settings.profile}
+        description={t.settings.profileBody}
+        action={
+          <LogoutButton
+            labels={{
+              logout: t.nav.logout,
+              loggingOut: t.nav.loggingOut,
+              error: "Could not log out."
+            }}
+          />
+        }
       >
         <div className="grid gap-3 md:grid-cols-2">
           <ReadOnlyField label="Name" value={account.name} />
@@ -118,9 +142,36 @@ export default async function SettingsPage() {
       </SettingsSection>
 
       <SettingsSection
+        icon={Globe2}
+        title={t.language.label}
+        description="Choose the interface language for this workspace."
+        action={
+          <LanguageSwitcher
+            locale={locale}
+            labels={{
+              en: t.language.english,
+              fi: t.language.finnish,
+              aria: t.language.label
+            }}
+          />
+        }
+      >
+        <div className="rounded-xl border border-border bg-surface/60 p-4">
+          <p className="text-sm font-medium">
+            {locale === "fi" ? "Nykyinen kieli" : "Current language"}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {locale === "fi"
+              ? "Kielivalinta tallennetaan tilillesi ja selaimen evästeeseen."
+              : "Your language choice is saved to your account and browser cookie."}
+          </p>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
         icon={CreditCard}
-        title="Billing"
-        description="Current subscription plan, billing status and Stripe test-mode tools."
+        title={t.settings.billing}
+        description={t.settings.billingBody}
         action={
           <Pill tone="bg-primary/10 text-primary">
             {account.billingPlan} - {account.billingStatus}
@@ -144,8 +195,8 @@ export default async function SettingsPage() {
 
       <SettingsSection
         icon={Tag}
-        title="Categories"
-        description="Manage expense categories used for expense allocation and reports."
+        title={t.settings.categories}
+        description={t.settings.categoriesBody}
         action={
           <Button asChild variant="outline" size="sm">
             <Link href="/app/settings/categories">Manage</Link>
@@ -169,8 +220,8 @@ export default async function SettingsPage() {
 
       <SettingsSection
         icon={Sparkles}
-        title="AI processing consent"
-        description="Controls for AI receipt parsing and extraction review."
+        title={t.settings.aiConsent}
+        description={t.settings.aiConsentBody}
         action={
           account.aiProcessingConsentAt ? (
             <Pill tone="bg-primary/10 text-primary">Enabled</Pill>
@@ -190,8 +241,8 @@ export default async function SettingsPage() {
 
       <SettingsSection
         icon={ShieldAlert}
-        title="Disclaimer status"
-        description="Acknowledgement status for tax-preparation reports."
+        title={t.settings.disclaimerStatus}
+        description={t.settings.disclaimerBody}
         action={
           account.disclaimerAcceptedAt ? (
             <Pill tone="bg-primary/10 text-primary">Accepted</Pill>
@@ -205,8 +256,8 @@ export default async function SettingsPage() {
 
       <SettingsSection
         icon={Smartphone}
-        title="Add to Home Screen"
-        description="Use HostReport like a mobile app for faster receipt capture."
+        title={t.settings.addToHomeScreen}
+        description={t.settings.addToHomeScreenBody}
         action={
           <Button asChild variant="outline" size="sm">
             <Link href="/app/settings/mobile-install">Open guide</Link>
@@ -237,8 +288,8 @@ export default async function SettingsPage() {
 
       <SettingsSection
         icon={Trash2}
-        title="Privacy and data deletion"
-        description="Review privacy information and data handling notes."
+        title={t.settings.privacyDeletion}
+        description={t.settings.privacyDeletionBody}
         action={<Pill tone="bg-muted text-muted-foreground">Manual request</Pill>}
       >
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface/60 p-4">

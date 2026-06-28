@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DisclaimerBlock } from "@/components/marketing/DisclaimerBlock";
+import { getI18n } from "@/lib/i18n/server";
 import { marketingFeatures, pricingPlans } from "@/lib/constants/marketing";
 
 const workflow = [
@@ -35,7 +36,9 @@ const workflow = [
   }
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const { t } = await getI18n();
+
   return (
     <>
       <section className="relative overflow-hidden">
@@ -44,28 +47,26 @@ export default function HomePage() {
           <div className="mx-auto max-w-3xl text-center">
             <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground shadow-soft">
               <Sparkles className="h-3.5 w-3.5 text-primary" />
-              Built for small Airbnb and short-term rental hosts
+              {t.marketing.heroEyebrow}
             </span>
             <h1 className="mt-6 text-4xl leading-tight sm:text-5xl md:text-6xl">
-              Airbnb income, expenses and receipts{" "}
-              <span className="text-primary">organized</span> for tax season
+              {t.marketing.heroTitle}
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-muted-foreground md:text-lg">
-              Track rental income, scan expense receipts, allocate costs and generate
-              tax-preparation reports without messy spreadsheets.
+              {t.marketing.heroBody}
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Button asChild size="lg">
                 <Link href="/signup">
-                  Start free trial <ArrowRight className="h-4 w-4" />
+                  {t.marketing.startTrial} <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline">
-                <Link href="/features">See how it works</Link>
+                <Link href="/features">{t.marketing.seeHowItWorks}</Link>
               </Button>
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              No credit card. Start with one property.
+              {t.marketing.noCreditCard}
             </p>
           </div>
 
@@ -111,10 +112,8 @@ export default function HomePage() {
       <section className="bg-surface/60 py-20 md:py-28">
         <div className="mx-auto max-w-7xl px-5">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-sm font-medium text-primary">Features</p>
-            <h2 className="mt-2 text-3xl md:text-4xl">
-              Everything for the host. Nothing you do not need.
-            </h2>
+            <p className="text-sm font-medium text-primary">{t.nav.features}</p>
+            <h2 className="mt-2 text-3xl md:text-4xl">{t.marketing.featuresTitle}</h2>
           </div>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {marketingFeatures.map((feature) => (
@@ -142,7 +141,9 @@ export default function HomePage() {
       <section className="bg-surface/60 py-20 md:py-28">
         <div className="mx-auto max-w-7xl px-5">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-sm font-medium text-primary">Pricing</p>
+            <p className="text-sm font-medium text-primary">
+              {t.marketing.pricingEyebrow}
+            </p>
             <h2 className="mt-2 text-3xl md:text-4xl">
               Start free. Upgrade when your workflow grows.
             </h2>
@@ -174,7 +175,9 @@ export default function HomePage() {
                   ))}
                 </ul>
                 <Button asChild className="mt-6 w-full">
-                  <Link href="/pricing">Choose {plan.name}</Link>
+                  <Link href="/pricing">
+                    {t.nav.pricing} · {plan.name}
+                  </Link>
                 </Button>
               </div>
             ))}
@@ -189,13 +192,11 @@ export default function HomePage() {
               <h2 className="text-3xl md:text-4xl">
                 Make next reporting season the easy one.
               </h2>
-              <p className="mt-2 text-primary-foreground/80">
-                Start organizing your rental income and receipts in minutes.
-              </p>
+              <p className="mt-2 text-primary-foreground/80">{t.marketing.heroBody}</p>
             </div>
             <Button asChild variant="secondary" size="lg">
               <Link href="/signup">
-                Start free trial <ArrowRight className="h-4 w-4" />
+                {t.marketing.startTrial} <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
           </div>

@@ -2,10 +2,12 @@ import { Check } from "lucide-react";
 import { DisclaimerBlock } from "@/components/marketing/DisclaimerBlock";
 import { PricingPlanAction } from "@/components/pricing/PricingPlanAction";
 import { pricingPlans } from "@/lib/constants/marketing";
+import { getI18n } from "@/lib/i18n/server";
 import { isStripeCheckoutConfigured } from "@/lib/stripe/client";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function PricingPage() {
+  const { t } = await getI18n();
   const supabase = await createClient();
   const {
     data: { user }
@@ -16,14 +18,11 @@ export default async function PricingPage() {
   return (
     <section className="mx-auto max-w-7xl px-5 py-16 md:py-24">
       <div className="mx-auto max-w-2xl text-center">
-        <p className="text-sm font-medium text-primary">Pricing</p>
+        <p className="text-sm font-medium text-primary">{t.marketing.pricingEyebrow}</p>
         <h1 className="mt-2 text-4xl leading-tight md:text-5xl">
-          Simple pricing for hosts.
+          {t.marketing.pricingTitle}
         </h1>
-        <p className="mt-4 text-muted-foreground">
-          Use Stripe test mode to try subscription checkout before production billing is
-          enabled.
-        </p>
+        <p className="mt-4 text-muted-foreground">{t.marketing.pricingBody}</p>
       </div>
 
       <div className="mt-12 grid gap-5 md:grid-cols-3">

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Crop, ImageIcon, RotateCcw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { Dictionary } from "@/lib/i18n";
 import {
   applyManualCrop,
   attemptAutoCropReceipt,
@@ -53,13 +54,15 @@ export function ReceiptImagePreprocessStep({
   onConfirm,
   onUseOriginal,
   onChooseAnother,
-  isPending = false
+  isPending = false,
+  labels
 }: {
   file: File;
   onConfirm: (file: File, result: PreprocessingResult) => void;
   onUseOriginal: () => void;
   onChooseAnother: () => void;
   isPending?: boolean;
+  labels: Dictionary["receipts"] & { cancel: string };
 }) {
   const [result, setResult] = useState<PreprocessingResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +89,7 @@ export function ReceiptImagePreprocessStep({
       })
       .catch(() => {
         if (!cancelled) {
-          setError("We could not prepare the image. You can still scan the original.");
+          setError(labels.prepareError);
         }
       })
       .finally(() => {
@@ -96,7 +99,7 @@ export function ReceiptImagePreprocessStep({
     return () => {
       cancelled = true;
     };
-  }, [file]);
+  }, [file, labels.prepareError]);
 
   useEffect(() => {
     return () => {
@@ -107,7 +110,7 @@ export function ReceiptImagePreprocessStep({
 
   async function applyCrop() {
     if (!isSafeManualCrop(manualCrop)) {
-      setError("The crop area is too small. Keep the whole receipt visible.");
+      setError(labels.cropTooTight);
       return;
     }
 
@@ -119,7 +122,7 @@ export function ReceiptImagePreprocessStep({
       setResult(nextResult);
       setIsManual(false);
     } catch {
-      setError("Manual crop could not be applied. You can still scan the original.");
+      setError(labels.manualCropError);
     } finally {
       setIsApplyingManual(false);
     }
@@ -137,9 +140,9 @@ export function ReceiptImagePreprocessStep({
         <div className="grid min-h-64 place-items-center text-center">
           <div>
             <Sparkles className="mx-auto h-9 w-9 animate-pulse text-primary" />
-            <p className="mt-4 font-display text-xl">Preparing receipt image...</p>
+            <p className="mt-4 font-display text-xl">{labels.preparingImage}</p>
             <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-              Image optimization can reduce upload size and improve AI extraction quality.
+              {labels.imageOptimization}
             </p>
           </div>
         </div>
@@ -152,19 +155,12 @@ export function ReceiptImagePreprocessStep({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="font-display text-xl">
-            {hasCroppedPreview
-              ? "We found the receipt area"
-              : "We could not detect the receipt edges"}
+            {hasCroppedPreview ? labels.foundArea : labels.couldNotDetect}
           </p>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-            {hasCroppedPreview
-              ? "We found the receipt area. Review before scanning."
-              : "We could not detect the receipt edges. You can still scan the original image."}
+            {hasCroppedPreview ? labels.foundAreaBody : labels.couldNotDetectBody}
           </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Optimizing the receipt image can improve extraction quality and reduce upload
-            size.
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{labels.imageOptimization}</p>
         </div>
         <div className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
           {result?.preprocessingMethod ?? "image preview"}
@@ -191,7 +187,7 @@ export function ReceiptImagePreprocessStep({
           <div className="grid gap-4 md:grid-cols-2">
             {(["left", "right", "top", "bottom"] as const).map((side) => (
               <label key={side} className="grid gap-2 text-sm font-medium">
-                Remove from {side}: {manualCrop[side]}%
+                {labels.removeFrom} {side}: {manualCrop[side]}%
                 <input
                   type="range"
                   min="0"
@@ -212,9 +208,7 @@ export function ReceiptImagePreprocessStep({
             {Math.round(remainingCropArea.height)}% height. Keep the full receipt inside
             the green box.
             {!manualCropIsSafe ? (
-              <p className="mt-1 text-destructive">
-                This crop is too tight. Widen it before applying.
-              </p>
+              <p className="mt-1 text-destructive">{labels.cropTooTight}</p>
             ) : null}
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -224,17 +218,17 @@ export function ReceiptImagePreprocessStep({
               disabled={isApplyingManual || !manualCropIsSafe}
             >
               <Crop className="h-4 w-4" />
-              {isApplyingManual ? "Applying..." : "Apply crop"}
+              {isApplyingManual ? labels.applying : labels.applyCrop}
             </Button>
             <Button
               type="button"
               variant="outline"
               onClick={() => setManualCrop({ left: 0, top: 0, right: 0, bottom: 0 })}
             >
-              Reset crop
+              {labels.resetCrop}
             </Button>
             <Button type="button" variant="outline" onClick={() => setIsManual(false)}>
-              Cancel
+              {labels.cancel}
             </Button>
           </div>
         </div>
@@ -259,11 +253,11 @@ export function ReceiptImagePreprocessStep({
             disabled={isPending}
             onClick={() => result && onConfirm(confirmedFile, result)}
           >
-            {isPending ? "Uploading and scanning..." : "Looks good - continue"}
+            {isPending ? labels.uploadingAndScanning : labels.looksGood}
           </Button>
         ) : (
           <Button type="button" disabled={isPending} onClick={onUseOriginal}>
-            {isPending ? "Uploading and scanning..." : "Scan original"}
+            {isPending ? labels.uploadingAndScanning : labels.scanOriginal}
           </Button>
         )}
         <Button
@@ -277,7 +271,7 @@ export function ReceiptImagePreprocessStep({
             setIsManual(true);
           }}
         >
-          Adjust crop
+          {labels.adjustCrop}
         </Button>
         <Button
           type="button"
@@ -285,7 +279,7 @@ export function ReceiptImagePreprocessStep({
           disabled={isPending}
           onClick={onUseOriginal}
         >
-          Use original
+          {labels.useOriginal}
         </Button>
         <Button
           type="button"
@@ -294,13 +288,11 @@ export function ReceiptImagePreprocessStep({
           onClick={onChooseAnother}
         >
           <RotateCcw className="h-4 w-4" />
-          Choose another image
+          {labels.chooseAnotherImage}
         </Button>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        You can always scan the original image if preprocessing does not look right.
-      </p>
+      <p className="text-xs text-muted-foreground">{labels.originalFallback}</p>
     </div>
   );
 }

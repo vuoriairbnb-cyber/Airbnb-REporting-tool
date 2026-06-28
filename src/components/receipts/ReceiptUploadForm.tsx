@@ -7,18 +7,22 @@ import { UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, selectClassName } from "@/components/forms/Field";
 import { ReceiptImagePreprocessStep } from "@/components/receipts/ReceiptImagePreprocessStep";
+import type { Dictionary } from "@/lib/i18n";
 import { isProcessableReceiptImage } from "@/lib/receipts/image-preprocessing";
 import { createClient } from "@/lib/supabase/client";
 import type { PropertyRow } from "@/server/reporting/types";
 
 const acceptedMimeTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
-const scanModeDescriptions = {
-  standard: "Quick receipt extraction for most receipts.",
-  plus: "More careful extraction for unclear receipts.",
-  pro: "Highest accuracy scan for difficult receipts."
-} as const;
-
-export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] }) {
+export function ReceiptUploadForm({
+  properties,
+  labels
+}: {
+  properties: PropertyRow[];
+  labels: {
+    receipts: Dictionary["receipts"];
+    common: Dictionary["common"];
+  };
+}) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [propertyId, setPropertyId] = useState("");
@@ -29,10 +33,10 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
   const [isDragging, setIsDragging] = useState(false);
 
   const fileLabel = useMemo(() => {
-    if (!file) return "Choose a receipt image or PDF";
+    if (!file) return labels.receipts.chooseFile;
 
     return `${file.name} (${Math.round(file.size / 1024)} KB)`;
-  }, [file]);
+  }, [file, labels.receipts.chooseFile]);
 
   function selectFile(nextFile?: File) {
     setError(null);
@@ -143,7 +147,7 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
     }
 
     if (isProcessableReceiptImage(file)) {
-      setError("Review the image preview before scanning.");
+      setError(labels.receipts.reviewImageFirst);
       return;
     }
 
@@ -177,7 +181,7 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
           <UploadCloud className="h-9 w-9 text-primary" />
           <span className="font-medium">{fileLabel}</span>
           <span className="text-sm text-muted-foreground">
-            Tap to upload on mobile, or drag and drop on desktop.
+            {labels.receipts.uploadHelper}
           </span>
         </span>
       </label>
@@ -189,7 +193,7 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
             value={propertyId}
             onChange={(event) => setPropertyId(event.target.value)}
           >
-            <option value="">No property</option>
+            <option value="">{labels.common.noProperty}</option>
             {properties.map((property) => (
               <option key={property.id} value={property.id}>
                 {property.name}
@@ -197,7 +201,7 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
             ))}
           </select>
         </Field>
-        <Field label="Scan mode">
+        <Field label={labels.receipts.scanMode}>
           <select
             className={selectClassName}
             value={scanMode}
@@ -205,12 +209,16 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
               setScanMode(event.target.value as "standard" | "plus" | "pro")
             }
           >
-            <option value="standard">Standard scan</option>
-            <option value="plus">Plus scan</option>
-            <option value="pro">Pro scan</option>
+            <option value="standard">{labels.receipts.standardScan}</option>
+            <option value="plus">{labels.receipts.plusScan}</option>
+            <option value="pro">{labels.receipts.proScan}</option>
           </select>
           <p className="text-xs text-muted-foreground">
-            {scanModeDescriptions[scanMode]}
+            {scanMode === "standard"
+              ? labels.receipts.standardDescription
+              : scanMode === "plus"
+                ? labels.receipts.plusDescription
+                : labels.receipts.proDescription}
           </p>
         </Field>
       </div>
@@ -222,6 +230,10 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
           onUseOriginal={() => uploadAndScan(file)}
           onChooseAnother={chooseAnotherFile}
           isPending={isPending}
+          labels={{
+            ...labels.receipts,
+            cancel: labels.common.cancel
+          }}
         />
       ) : null}
 
@@ -242,7 +254,9 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
       ) : null}
       {!file || !isProcessableReceiptImage(file) ? (
         <Button type="submit" disabled={isPending}>
-          {isPending ? "Uploading and scanning..." : "Upload and scan receipt"}
+          {isPending
+            ? labels.receipts.uploadingAndScanning
+            : labels.receipts.uploadAndScan}
         </Button>
       ) : null}
     </form>

@@ -4,20 +4,31 @@ import Link from "next/link";
 import { useState } from "react";
 import { LogOut, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { Logo } from "@/components/Logo";
+import type { Dictionary, Locale } from "@/lib/i18n";
 
 const links = [
-  { href: "/features", label: "Features" },
-  { href: "/pricing", label: "Pricing" },
-  { href: "/disclaimer", label: "Disclaimer" },
-  { href: "/privacy", label: "Privacy" }
+  { href: "/features", labelKey: "features" },
+  { href: "/pricing", labelKey: "pricing" },
+  { href: "/disclaimer", labelKey: "disclaimer" },
+  { href: "/privacy", labelKey: "privacy" }
 ] as const;
 
 type MarketingHeaderProps = {
   isAuthenticated?: boolean;
+  locale: Locale;
+  labels: {
+    language: { en: string; fi: string; aria: string };
+    nav: Dictionary["nav"];
+  };
 };
 
-export function MarketingHeader({ isAuthenticated = false }: MarketingHeaderProps) {
+export function MarketingHeader({
+  isAuthenticated = false,
+  locale,
+  labels
+}: MarketingHeaderProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -31,30 +42,31 @@ export function MarketingHeader({ isAuthenticated = false }: MarketingHeaderProp
               href={link.href}
               className="transition-colors hover:text-foreground"
             >
-              {link.label}
+              {labels.nav[link.labelKey] ?? link.labelKey}
             </Link>
           ))}
         </nav>
         <div className="hidden items-center gap-2 md:flex">
+          <LanguageSwitcher locale={locale} labels={labels.language} compact />
           {isAuthenticated ? (
             <>
               <Button asChild variant="ghost" size="sm">
-                <Link href="/app/dashboard">Dashboard</Link>
+                <Link href="/app/dashboard">{labels.nav.dashboard}</Link>
               </Button>
               <Button asChild size="sm" variant="outline">
                 <Link href="/auth/logout">
                   <LogOut className="h-4 w-4" />
-                  Log out
+                  {labels.nav.logout}
                 </Link>
               </Button>
             </>
           ) : (
             <>
               <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-                <Link href="/login">Log in</Link>
+                <Link href="/login">{labels.nav.login}</Link>
               </Button>
               <Button asChild size="sm">
-                <Link href="/signup">Get started</Link>
+                <Link href="/signup">{labels.nav.getStarted}</Link>
               </Button>
             </>
           )}
@@ -78,19 +90,22 @@ export function MarketingHeader({ isAuthenticated = false }: MarketingHeaderProp
                 className="rounded-lg px-3 py-2 text-sm hover:bg-muted"
                 onClick={() => setOpen(false)}
               >
-                {link.label}
+                {labels.nav[link.labelKey] ?? link.labelKey}
               </Link>
             ))}
+            <div className="px-3 py-2">
+              <LanguageSwitcher locale={locale} labels={labels.language} />
+            </div>
             {isAuthenticated ? (
               <div className="mt-2 grid grid-cols-2 gap-2 border-t border-border pt-3">
                 <Button asChild variant="outline" size="sm">
                   <Link href="/app/dashboard" onClick={() => setOpen(false)}>
-                    Dashboard
+                    {labels.nav.dashboard}
                   </Link>
                 </Button>
                 <Button asChild size="sm">
                   <Link href="/auth/logout" onClick={() => setOpen(false)}>
-                    Log out
+                    {labels.nav.logout}
                   </Link>
                 </Button>
               </div>
@@ -98,12 +113,12 @@ export function MarketingHeader({ isAuthenticated = false }: MarketingHeaderProp
               <div className="mt-2 grid grid-cols-2 gap-2 border-t border-border pt-3">
                 <Button asChild variant="outline" size="sm">
                   <Link href="/login" onClick={() => setOpen(false)}>
-                    Log in
+                    {labels.nav.login}
                   </Link>
                 </Button>
                 <Button asChild size="sm">
                   <Link href="/signup" onClick={() => setOpen(false)}>
-                    Get started
+                    {labels.nav.getStarted}
                   </Link>
                 </Button>
               </div>

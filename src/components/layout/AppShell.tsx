@@ -14,27 +14,44 @@ import {
   TrendingUp
 } from "lucide-react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { Logo } from "@/components/Logo";
+import type { Dictionary, Locale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/app/properties", label: "Properties", icon: Building2 },
-  { href: "/app/income", label: "Income", icon: TrendingUp },
-  { href: "/app/expenses", label: "Expenses", icon: Receipt },
-  { href: "/app/receipts", label: "Receipts", icon: ScanLine },
-  { href: "/app/reports", label: "Reports", icon: FileText },
-  { href: "/app/settings", label: "Settings", icon: Settings }
+  { href: "/app/dashboard", labelKey: "dashboard", icon: LayoutDashboard },
+  { href: "/app/properties", labelKey: "properties", icon: Building2 },
+  { href: "/app/income", labelKey: "income", icon: TrendingUp },
+  { href: "/app/expenses", labelKey: "expenses", icon: Receipt },
+  { href: "/app/receipts", labelKey: "receipts", icon: ScanLine },
+  { href: "/app/reports", labelKey: "reports", icon: FileText },
+  { href: "/app/settings", labelKey: "settings", icon: Settings }
 ] as const;
 
 function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+type AppShellLabels = {
+  language: { en: string; fi: string; aria: string };
+  nav: Dictionary["nav"];
+  workspace: string;
+};
+
+export function AppShell({
+  children,
+  locale,
+  labels
+}: {
+  children: React.ReactNode;
+  locale: Locale;
+  labels: AppShellLabels;
+}) {
   const pathname = usePathname();
   const current =
     navItems.find((item) => isActivePath(pathname, item.href)) ?? navItems[0];
+  const currentLabel = labels.nav[current.labelKey] ?? current.labelKey;
 
   return (
     <div className="min-h-screen bg-surface/40">
@@ -59,7 +76,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 )}
               >
                 <item.icon className="h-4 w-4" />
-                {item.label}
+                {labels.nav[item.labelKey] ?? item.labelKey}
               </Link>
             );
           })}
@@ -75,7 +92,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             href="/app/settings/billing/plans"
             className="mt-3 block rounded-full bg-primary px-3 py-1.5 text-center text-xs font-medium text-primary-foreground"
           >
-            View plans
+            {labels.nav.viewPlans}
           </Link>
         </div>
       </aside>
@@ -85,13 +102,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 md:flex md:justify-between">
             <div className="min-w-0">
               <p className="truncate font-display text-lg leading-tight">
-                {current.label}
+                {currentLabel}
               </p>
-              <p className="text-[11px] text-muted-foreground">
-                Workspace - reporting preparation
-              </p>
+              <p className="text-[11px] text-muted-foreground">{labels.workspace}</p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              <div className="hidden md:block">
+                <LanguageSwitcher locale={locale} labels={labels.language} compact />
+              </div>
               <button
                 type="button"
                 className="hidden h-9 w-9 place-items-center rounded-full border border-border text-muted-foreground transition hover:bg-muted md:grid"
@@ -114,7 +132,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 H
               </Link>
               <div className="hidden md:block">
-                <LogoutButton size="sm" />
+                <LogoutButton
+                  size="sm"
+                  labels={{
+                    logout: labels.nav.logout,
+                    loggingOut: labels.nav.loggingOut,
+                    error: "Could not log out."
+                  }}
+                />
               </div>
             </div>
           </div>
@@ -145,7 +170,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 )}
               >
                 <item.icon className="h-5 w-5" />
-                {item.label}
+                {labels.nav[item.labelKey] ?? item.labelKey}
               </Link>
             );
           })}

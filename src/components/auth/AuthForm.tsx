@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Logo } from "@/components/Logo";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { Button } from "@/components/ui/button";
+import type { Dictionary, Locale } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 
 type AuthMode = "login" | "signup";
@@ -15,10 +17,18 @@ const inputClassName =
 
 export function AuthForm({
   mode,
-  next = "/app/dashboard"
+  next = "/app/dashboard",
+  locale,
+  labels
 }: {
   mode: AuthMode;
   next?: string;
+  locale: Locale;
+  labels: {
+    language: { en: string; fi: string; aria: string };
+    auth: Dictionary["auth"];
+    nav: Dictionary["nav"];
+  };
 }) {
   const router = useRouter();
   const isLogin = mode === "login";
@@ -82,23 +92,22 @@ export function AuthForm({
       return;
     }
 
-    setNotice(
-      "Check your email to confirm your account. After confirmation, return to login to continue reporting preparation."
-    );
+    setNotice(labels.auth.checkEmail);
   }
 
   return (
     <main className="grid min-h-screen bg-background md:grid-cols-2">
       <section className="flex flex-col p-6 md:p-10">
-        <Logo />
+        <div className="flex items-center justify-between gap-3">
+          <Logo />
+          <LanguageSwitcher locale={locale} labels={labels.language} compact />
+        </div>
         <div className="mx-auto my-auto w-full max-w-sm py-10">
           <h1 className="text-3xl">
-            {isLogin ? "Welcome back." : "Create your account."}
+            {isLogin ? labels.auth.welcomeBack : labels.auth.createAccount}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {isLogin
-              ? "Log in to continue organizing reporting preparation."
-              : "Start organizing rental income, expenses and receipts for reporting preparation."}
+            {isLogin ? labels.auth.loginBody : labels.auth.signupBody}
           </p>
 
           <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
@@ -113,7 +122,7 @@ export function AuthForm({
                 />
               </Field>
             ) : null}
-            <Field label="Email">
+            <Field label={labels.auth.email}>
               <input
                 type="email"
                 name="email"
@@ -123,7 +132,7 @@ export function AuthForm({
                 required
               />
             </Field>
-            <Field label="Password">
+            <Field label={labels.auth.password}>
               <input
                 type="password"
                 name="password"
@@ -153,8 +162,8 @@ export function AuthForm({
                   ? "Logging in..."
                   : "Creating account..."
                 : isLogin
-                  ? "Continue"
-                  : "Accept and create account"}
+                  ? labels.auth.loginButton
+                  : labels.auth.signupButton}
             </Button>
           </form>
 
@@ -163,14 +172,14 @@ export function AuthForm({
               <>
                 New here?{" "}
                 <Link href="/signup" className="text-primary hover:underline">
-                  Create an account
+                  {labels.auth.signupButton}
                 </Link>
               </>
             ) : (
               <>
                 Already registered?{" "}
                 <Link href="/login" className="text-primary hover:underline">
-                  Log in
+                  {labels.nav.login}
                 </Link>
               </>
             )}
