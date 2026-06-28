@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, selectClassName } from "@/components/forms/Field";
+import { ReceiptImagePreprocessStep } from "@/components/receipts/ReceiptImagePreprocessStep";
+import { isProcessableReceiptImage } from "@/lib/receipts/image-preprocessing";
 import { createClient } from "@/lib/supabase/client";
 import type { PropertyRow } from "@/server/reporting/types";
 
@@ -46,12 +48,17 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
     setFile(nextFile);
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function chooseAnotherFile() {
+    setFile(null);
+    setError(null);
+    setNeedsAiConsent(false);
+  }
+
+  async function uploadAndScan(uploadFile: File) {
     setError(null);
     setNeedsAiConsent(false);
 
-    if (!file) {
+    if (!uploadFile) {
       setError("Choose a receipt first.");
       return;
     }
@@ -62,9 +69,9 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        fileName: file.name,
-        mimeType: file.type,
-        fileSizeBytes: file.size,
+        fileName: uploadFile.name,
+        mimeType: uploadFile.type,
+        fileSizeBytes: uploadFile.size,
         propertyId: propertyId || null
       })
     });
@@ -80,8 +87,8 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
     const supabase = createClient();
     const upload = await supabase.storage
       .from(data.bucket)
-      .upload(data.uploadPath, file, {
-        contentType: file.type,
+      .upload(data.uploadPath, uploadFile, {
+        contentType: uploadFile.type,
         upsert: false
       });
 
@@ -125,6 +132,22 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
     const parsed = await parseResponse.json();
     router.push(`/app/receipts/${parsed.data.receiptId}/review`);
     router.refresh();
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!file) {
+      setError("Choose a receipt first.");
+      return;
+    }
+
+    if (isProcessableReceiptImage(file)) {
+      setError("Review the image preview before scanning.");
+      return;
+    }
+
+    await uploadAndScan(file);
   }
 
   return (
@@ -192,6 +215,16 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
         </Field>
       </div>
 
+      {file && isProcessableReceiptImage(file) ? (
+        <ReceiptImagePreprocessStep
+          file={file}
+          onConfirm={(confirmedFile) => uploadAndScan(confirmedFile)}
+          onUseOriginal={() => uploadAndScan(file)}
+          onChooseAnother={chooseAnotherFile}
+          isPending={isPending}
+        />
+      ) : null}
+
       {error ? (
         <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm">
           <p className="text-destructive">{error}</p>
@@ -207,9 +240,11 @@ export function ReceiptUploadForm({ properties }: { properties: PropertyRow[] })
           </div>
         </div>
       ) : null}
-      <Button type="submit" disabled={isPending}>
-        {isPending ? "Uploading and scanning..." : "Upload and scan receipt"}
-      </Button>
+      {!file || !isProcessableReceiptImage(file) ? (
+        <Button type="submit" disabled={isPending}>
+          {isPending ? "Uploading and scanning..." : "Upload and scan receipt"}
+        </Button>
+      ) : null}
     </form>
   );
 }

@@ -9,7 +9,7 @@ export default async function UploadReceiptPage() {
     <>
       <PageHeader
         title="Upload receipt"
-        description="Upload to private Supabase Storage and run mock extraction."
+        description="Optimize image receipts when possible, upload to private storage and run AI extraction."
       />
       <ReceiptUploadForm properties={properties} />
     </>
