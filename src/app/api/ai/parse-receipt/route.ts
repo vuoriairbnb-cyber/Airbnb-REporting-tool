@@ -202,7 +202,7 @@ export async function POST(request: Request) {
         allocation_percentage: allocationPercentage,
         candidate_reportable_amount: candidateReportableAmount,
         status: "draft",
-        notes: "Created from mock receipt extraction. Review before reporting.",
+        notes: "Created from AI receipt extraction. Review before reporting.",
         items: result.receipt.items
       })
       .select("*")
