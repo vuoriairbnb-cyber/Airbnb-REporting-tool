@@ -131,14 +131,14 @@ export function ReceiptList({ receipts }: { receipts: ReceiptRow[] }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3 shadow-card">
-        <label className="flex items-center gap-2 text-sm font-medium">
+        <label className="flex cursor-pointer items-center gap-3 rounded-full border border-border bg-surface px-4 py-2 text-sm font-medium transition hover:border-primary/40">
           <input
             type="checkbox"
             checked={allSelected}
-            className="h-4 w-4 rounded border-border accent-primary"
+            className="h-5 w-5 rounded border-border accent-primary"
             onChange={toggleAll}
           />
-          Select receipts
+          Select all receipts
         </label>
         <div className="flex flex-wrap items-center gap-2">
           {selectedCount ? (
@@ -186,22 +186,12 @@ export function ReceiptList({ receipts }: { receipts: ReceiptRow[] }) {
           return (
             <div
               key={receipt.id}
-              className={`grid grid-cols-[auto_64px_minmax(0,1fr)] gap-3 rounded-2xl border bg-card p-3 shadow-card transition sm:grid-cols-[auto_64px_minmax(0,1fr)_auto] sm:items-center ${
+              className={`grid grid-cols-[64px_minmax(0,1fr)] gap-3 rounded-2xl border bg-card p-3 shadow-card transition sm:grid-cols-[64px_minmax(0,1fr)_auto] sm:items-center ${
                 isSelected
                   ? "border-primary/60 ring-2 ring-primary/15"
                   : "border-border hover:border-primary/40 hover:bg-muted/30"
               }`}
             >
-              <label className="flex h-16 items-center">
-                <span className="sr-only">Select {title}</span>
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  className="h-4 w-4 rounded border-border accent-primary"
-                  onChange={() => toggleReceipt(receipt.id)}
-                />
-              </label>
-
               <Link
                 href={receiptHref}
                 className="grid h-16 w-16 place-items-center rounded-xl bg-surface text-primary"
@@ -213,17 +203,38 @@ export function ReceiptList({ receipts }: { receipts: ReceiptRow[] }) {
                 )}
               </Link>
 
-              <Link href={receiptHref} className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="truncate font-medium">{title}</p>
-                  <Pill tone={statusTone(receipt.status)}>
-                    {statusLabel(receipt.status)}
-                  </Pill>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <Link href={receiptHref} className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate font-medium">{title}</p>
+                      <Pill tone={statusTone(receipt.status)}>
+                        {statusLabel(receipt.status)}
+                      </Pill>
+                    </div>
+                  </Link>
+                  <label
+                    className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                      isSelected
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-surface text-foreground hover:border-primary/40"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      className="h-4 w-4 rounded border-border accent-primary"
+                      onChange={() => toggleReceipt(receipt.id)}
+                    />
+                    Select
+                  </label>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {formatReceiptDate(expense?.date, sourceDocument?.created_at)} /{" "}
-                  {propertyName}
-                </p>
+                <Link href={receiptHref}>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formatReceiptDate(expense?.date, sourceDocument?.created_at)} /{" "}
+                    {propertyName}
+                  </p>
+                </Link>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   {confidence ? (
                     <Pill tone="bg-primary/10 text-primary">
@@ -236,11 +247,11 @@ export function ReceiptList({ receipts }: { receipts: ReceiptRow[] }) {
                     <Pill tone="bg-success/15 text-success">Receipt-linked expense</Pill>
                   ) : null}
                 </div>
-              </Link>
+              </div>
 
               <Link
                 href={receiptHref}
-                className="col-span-3 rounded-xl bg-surface/70 px-3 py-2 text-left sm:col-span-1 sm:bg-transparent sm:p-0 sm:text-right"
+                className="col-span-2 rounded-xl bg-surface/70 px-3 py-2 text-left sm:col-span-1 sm:bg-transparent sm:p-0 sm:text-right"
               >
                 <p className="font-medium">
                   {formatCurrency(totalAmount, expense?.currency)}
