@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { incomeInputSchema } from "@/lib/validation/income";
 import { apiError, logServerError, parseJsonBody } from "@/server/reporting/api";
+import { requireApprovedUserIdForApi } from "@/server/reporting/approval";
 import type { SupabaseReportingClient } from "@/server/reporting/db";
 import { assertIncomeRelations, isOwnershipError } from "@/server/reporting/ownership";
 import { getCurrentUserId } from "@/server/reporting/queries";
@@ -30,10 +31,12 @@ export async function GET(_request: Request, context: Context) {
 }
 
 export async function PATCH(request: Request, context: Context) {
-  const userId = await getCurrentUserId();
+  const approval = await requireApprovedUserIdForApi();
   const { id } = await context.params;
 
-  if (!userId) return apiError("Authentication required.", 401);
+  if (approval.response) return approval.response;
+
+  const userId = approval.userId;
 
   const parsed = await parseJsonBody(request, incomeInputSchema.partial());
 
@@ -65,10 +68,12 @@ export async function PATCH(request: Request, context: Context) {
 }
 
 export async function DELETE(_request: Request, context: Context) {
-  const userId = await getCurrentUserId();
+  const approval = await requireApprovedUserIdForApi();
   const { id } = await context.params;
 
-  if (!userId) return apiError("Authentication required.", 401);
+  if (approval.response) return approval.response;
+
+  const userId = approval.userId;
 
   const supabase = (await createClient()) as unknown as SupabaseReportingClient;
   const { error } = await supabase

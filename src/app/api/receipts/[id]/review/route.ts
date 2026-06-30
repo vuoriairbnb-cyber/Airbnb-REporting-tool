@@ -6,18 +6,21 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { reviewReceiptSchema } from "@/lib/validation/receipts";
 import { apiError, logServerError, parseJsonBody } from "@/server/reporting/api";
+import { requireApprovedUserIdForApi } from "@/server/reporting/approval";
 import type { SupabaseReportingClient } from "@/server/reporting/db";
 import { assertExpenseRelations, isOwnershipError } from "@/server/reporting/ownership";
-import { getCategories, getCurrentUserId } from "@/server/reporting/queries";
+import { getCategories } from "@/server/reporting/queries";
 import type { ReceiptRow } from "@/server/reporting/types";
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const userId = await getCurrentUserId();
+  const approval = await requireApprovedUserIdForApi();
 
-  if (!userId) return apiError("Authentication required.", 401);
+  if (approval.response) return approval.response;
+
+  const userId = approval.userId;
 
   const parsed = await parseJsonBody(request, reviewReceiptSchema);
 

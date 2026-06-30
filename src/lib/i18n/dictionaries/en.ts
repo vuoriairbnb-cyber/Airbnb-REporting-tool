@@ -69,7 +69,9 @@ export const en = {
     signupButton: "Create account",
     forgotPassword: "Forgot password?",
     checkEmail:
-      "Check your email to confirm your account. After confirmation, return to login to continue reporting preparation."
+      "Check your email to confirm your account. After confirmation, your account will still need manual approval before app access.",
+    approvalPending:
+      "Your account was created and is waiting for approval before app access is enabled."
   },
   app: {
     dashboardTitle: "Dashboard",

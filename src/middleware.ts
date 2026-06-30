@@ -5,6 +5,7 @@ import { getSupabasePublishableKey, getSupabaseUrl } from "@/lib/supabase/env";
 type OnboardingStatus = {
   userId: string | null;
   hasProfile: boolean;
+  approvedAt: string | null;
   disclaimerAcceptedAt: string | null;
   propertyCount: number;
 };
@@ -32,6 +33,7 @@ function isOnboardingComplete(status: OnboardingStatus) {
   return Boolean(
     status.userId &&
     status.hasProfile &&
+    status.approvedAt &&
     status.disclaimerAcceptedAt &&
     status.propertyCount > 0
   );
@@ -49,16 +51,6 @@ function redirectWithCookies(url: URL, responseWithCookies: NextResponse) {
 
 export async function middleware(request: NextRequest) {
   const loginUrl = new URL("/login", request.url);
-
-  if (canUseLocalAuthFallback(request)) {
-    if (hasSupabaseAuthCookie(request)) {
-      return NextResponse.next({
-        request
-      });
-    }
-
-    return NextResponse.redirect(loginUrl);
-  }
 
   let supabaseResponse = NextResponse.next({
     request
@@ -115,7 +107,7 @@ export async function middleware(request: NextRequest) {
     [profileResult, propertiesResult] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id,disclaimer_accepted_at")
+        .select("id,approved_at,disclaimer_accepted_at")
         .eq("id", userId)
         .single(),
       supabase.from("properties").select("id").eq("user_id", userId)
@@ -139,16 +131,25 @@ export async function middleware(request: NextRequest) {
 
   const profile = profileResult.data as {
     id: string;
+    approved_at: string | null;
     disclaimer_accepted_at: string | null;
   } | null;
   const status: OnboardingStatus = {
     userId,
     hasProfile: Boolean(profile && !profileResult.error),
+    approvedAt: profile?.approved_at ?? null,
     disclaimerAcceptedAt: profile?.disclaimer_accepted_at ?? null,
     propertyCount: Array.isArray(propertiesResult.data) ? propertiesResult.data.length : 0
   };
   const complete = isOnboardingComplete(status);
   const pathname = request.nextUrl.pathname;
+
+  if (!status.approvedAt) {
+    return redirectWithCookies(
+      new URL("/pending-approval", request.url),
+      supabaseResponse
+    );
+  }
 
   if (pathname === "/app/onboarding") {
     if (complete) {

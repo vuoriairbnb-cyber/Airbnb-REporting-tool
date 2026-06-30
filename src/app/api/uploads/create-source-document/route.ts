@@ -3,9 +3,9 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createSourceDocumentSchema } from "@/lib/validation/receipts";
 import { apiError, logServerError, parseJsonBody } from "@/server/reporting/api";
+import { requireApprovedUserIdForApi } from "@/server/reporting/approval";
 import type { SupabaseReportingClient } from "@/server/reporting/db";
 import { assertUserOwnsProperty, isOwnershipError } from "@/server/reporting/ownership";
-import { getCurrentUserId } from "@/server/reporting/queries";
 import type { SourceDocumentRow } from "@/server/reporting/types";
 
 function sanitizeFileName(fileName: string) {
@@ -21,9 +21,11 @@ const markSourceDocumentFailedSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const userId = await getCurrentUserId();
+  const approval = await requireApprovedUserIdForApi();
 
-  if (!userId) return apiError("Authentication required.", 401);
+  if (approval.response) return approval.response;
+
+  const userId = approval.userId;
 
   const parsed = await parseJsonBody(request, createSourceDocumentSchema);
 
@@ -80,9 +82,11 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const userId = await getCurrentUserId();
+  const approval = await requireApprovedUserIdForApi();
 
-  if (!userId) return apiError("Authentication required.", 401);
+  if (approval.response) return approval.response;
+
+  const userId = approval.userId;
 
   const parsed = await parseJsonBody(request, markSourceDocumentFailedSchema);
 

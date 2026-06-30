@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { apiError, logServerError } from "@/server/reporting/api";
+import { requireApprovedUserIdForApi } from "@/server/reporting/approval";
 import type { SupabaseReportingClient } from "@/server/reporting/db";
 import { getCurrentUserId, getReceipt } from "@/server/reporting/queries";
 
@@ -24,9 +25,11 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const userId = await getCurrentUserId();
+  const approval = await requireApprovedUserIdForApi();
 
-  if (!userId) return apiError("Authentication required.", 401);
+  if (approval.response) return approval.response;
+
+  const userId = approval.userId;
 
   const { id } = await params;
   const supabaseClient = await createClient();

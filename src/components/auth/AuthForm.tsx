@@ -87,7 +87,7 @@ export function AuthForm({
     }
 
     if (data.session) {
-      router.replace(nextPath as Route);
+      router.replace("/pending-approval" as Route);
       router.refresh();
       return;
     }

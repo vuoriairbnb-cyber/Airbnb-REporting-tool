@@ -10,8 +10,9 @@ import { canRunAiScan } from "@/lib/stripe/entitlements";
 import { createClient } from "@/lib/supabase/server";
 import { parseReceiptSchema } from "@/lib/validation/receipts";
 import { apiError, logServerError, parseJsonBody } from "@/server/reporting/api";
+import { requireApprovedUserIdForApi } from "@/server/reporting/approval";
 import type { SupabaseReportingClient } from "@/server/reporting/db";
-import { getCategories, getCurrentUserId } from "@/server/reporting/queries";
+import { getCategories } from "@/server/reporting/queries";
 import type {
   ExpenseEntryRow,
   ReceiptRow,
@@ -65,9 +66,11 @@ async function recordAiUsage(
 }
 
 export async function POST(request: Request) {
-  const userId = await getCurrentUserId();
+  const approval = await requireApprovedUserIdForApi();
 
-  if (!userId) return apiError("Authentication required.", 401);
+  if (approval.response) return approval.response;
+
+  const userId = approval.userId;
 
   const parsed = await parseJsonBody(request, parseReceiptSchema);
 

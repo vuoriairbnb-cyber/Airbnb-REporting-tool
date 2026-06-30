@@ -69,7 +69,8 @@ export const fi = {
     signupButton: "Luo tili",
     forgotPassword: "Unohditko salasanan?",
     checkEmail:
-      "Tarkista sähköpostisi ja vahvista tili. Vahvistuksen jälkeen palaa kirjautumissivulle."
+      "Tarkista sähköpostisi ja vahvista tili. Vahvistuksen jälkeen tili tarvitsee vielä manuaalisen hyväksynnän ennen sovelluksen käyttöä.",
+    approvalPending: "Tilisi on luotu ja odottaa hyväksyntää ennen sovelluksen käyttöä."
   },
   app: {
     dashboardTitle: "Yleiskuva",

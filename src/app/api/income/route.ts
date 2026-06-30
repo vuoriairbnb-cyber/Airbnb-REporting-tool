@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { incomeInputSchema } from "@/lib/validation/income";
 import { apiError, logServerError, parseJsonBody } from "@/server/reporting/api";
+import { requireApprovedUserIdForApi } from "@/server/reporting/approval";
 import type { SupabaseReportingClient } from "@/server/reporting/db";
 import { assertIncomeRelations, isOwnershipError } from "@/server/reporting/ownership";
 import { getCurrentUserId } from "@/server/reporting/queries";
@@ -27,9 +28,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const userId = await getCurrentUserId();
+  const approval = await requireApprovedUserIdForApi();
 
-  if (!userId) return apiError("Authentication required.", 401);
+  if (approval.response) return approval.response;
+
+  const userId = approval.userId;
 
   const parsed = await parseJsonBody(request, incomeInputSchema);
 

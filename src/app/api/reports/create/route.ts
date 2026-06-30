@@ -3,20 +3,22 @@ import { canGenerateReport } from "@/lib/stripe/entitlements";
 import { createClient } from "@/lib/supabase/server";
 import { createReportSchema } from "@/lib/validation/reports";
 import { apiError, logServerError, parseJsonBody } from "@/server/reporting/api";
+import { requireApprovedUserIdForApi } from "@/server/reporting/approval";
 import { assertReportFilters, isOwnershipError } from "@/server/reporting/ownership";
 import {
   generateReportArtifact,
   getReportDataset,
   uploadGeneratedReport
 } from "@/server/reporting/report-generation";
-import { getCurrentUserId } from "@/server/reporting/queries";
 import type { SupabaseReportingClient } from "@/server/reporting/db";
 import type { ReportRow } from "@/server/reporting/types";
 
 export async function POST(request: Request) {
-  const userId = await getCurrentUserId();
+  const approval = await requireApprovedUserIdForApi();
 
-  if (!userId) return apiError("Authentication required.", 401);
+  if (approval.response) return approval.response;
+
+  const userId = approval.userId;
 
   const parsed = await parseJsonBody(request, createReportSchema);
 
