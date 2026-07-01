@@ -47,6 +47,33 @@ export async function getProperties() {
   return (data ?? []) as PropertyRow[];
 }
 
+export async function getPropertyImageUrls(properties: PropertyRow[]) {
+  const imagePaths = properties
+    .map((property) => property.image_path)
+    .filter((path): path is string => Boolean(path));
+
+  if (imagePaths.length === 0) return {} as Record<string, string>;
+
+  const supabase = await createClient();
+  const result: Record<string, string> = {};
+
+  await Promise.all(
+    properties.map(async (property) => {
+      if (!property.image_path) return;
+
+      const { data, error } = await supabase.storage
+        .from("property-images")
+        .createSignedUrl(property.image_path, 60 * 60);
+
+      if (!error && data?.signedUrl) {
+        result[property.id] = data.signedUrl;
+      }
+    })
+  );
+
+  return result;
+}
+
 export async function getCategories() {
   const supabase = (await createClient()) as unknown as SupabaseReportingClient;
   const { data, error } = await supabase

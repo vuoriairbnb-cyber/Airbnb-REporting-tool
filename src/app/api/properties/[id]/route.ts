@@ -10,6 +10,15 @@ type Context = {
   params: Promise<{ id: string }>;
 };
 
+function isAllowedPropertyImagePath(path: string | null | undefined, userId: string) {
+  if (!path) return true;
+  return (
+    path.startsWith(`${userId}/`) &&
+    !path.includes("..") &&
+    /\.(jpe?g|png|webp)$/i.test(path)
+  );
+}
+
 export async function GET(_request: Request, context: Context) {
   const userId = await getCurrentUserId();
   const { id } = await context.params;
@@ -40,6 +49,15 @@ export async function PATCH(request: Request, context: Context) {
   const parsed = await parseJsonBody(request, propertyInputSchema.partial());
 
   if (parsed.error || !parsed.data) return apiError(parsed.error ?? "Invalid property.");
+
+  const imagePath =
+    typeof parsed.data.image_path === "string" || parsed.data.image_path === null
+      ? parsed.data.image_path
+      : undefined;
+
+  if (!isAllowedPropertyImagePath(imagePath, userId)) {
+    return apiError("Invalid property image.", 400);
+  }
 
   const supabase = (await createClient()) as unknown as SupabaseReportingClient;
   const { data, error } = await supabase

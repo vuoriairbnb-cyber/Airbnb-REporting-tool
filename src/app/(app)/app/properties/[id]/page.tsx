@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PropertyForm } from "@/components/properties/PropertyForm";
-import { getProperty } from "@/server/reporting/queries";
+import { getProperty, getPropertyImageUrls } from "@/server/reporting/queries";
 
 export default async function PropertyDetailPage({
   params
@@ -13,13 +13,15 @@ export default async function PropertyDetailPage({
 
   if (!property) notFound();
 
+  const imageUrls = await getPropertyImageUrls([property]);
+
   return (
     <>
       <PageHeader
         title="Property details"
         description="Edit property settings and defaults."
       />
-      <PropertyForm property={property} />
+      <PropertyForm property={property} initialImageUrl={imageUrls[property.id]} />
     </>
   );
 }

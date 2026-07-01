@@ -2,10 +2,11 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PropertyList } from "@/components/properties/PropertyList";
-import { getProperties } from "@/server/reporting/queries";
+import { getProperties, getPropertyImageUrls } from "@/server/reporting/queries";
 
 export default async function PropertiesPage() {
   const properties = await getProperties();
+  const imageUrls = await getPropertyImageUrls(properties);
 
   return (
     <div className="space-y-5">
@@ -29,7 +30,7 @@ export default async function PropertiesPage() {
           </Link>
         </Button>
       </div>
-      <PropertyList properties={properties} />
+      <PropertyList properties={properties} imageUrls={imageUrls} />
     </div>
   );
 }

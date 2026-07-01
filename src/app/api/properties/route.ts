@@ -7,6 +7,15 @@ import { requireApprovedUserIdForApi } from "@/server/reporting/approval";
 import type { SupabaseReportingClient } from "@/server/reporting/db";
 import { getCurrentUserId } from "@/server/reporting/queries";
 
+function isAllowedPropertyImagePath(path: string | null | undefined, userId: string) {
+  if (!path) return true;
+  return (
+    path.startsWith(`${userId}/`) &&
+    !path.includes("..") &&
+    /\.(jpe?g|png|webp)$/i.test(path)
+  );
+}
+
 export async function GET() {
   const userId = await getCurrentUserId();
 
@@ -38,6 +47,15 @@ export async function POST(request: Request) {
   const parsed = await parseJsonBody(request, propertyInputSchema);
 
   if (parsed.error || !parsed.data) return apiError(parsed.error ?? "Invalid property.");
+
+  const imagePath =
+    typeof parsed.data.image_path === "string" || parsed.data.image_path === null
+      ? parsed.data.image_path
+      : undefined;
+
+  if (!isAllowedPropertyImagePath(imagePath, userId)) {
+    return apiError("Invalid property image.", 400);
+  }
 
   const propertyAccess = await canCreateProperty(userId);
 

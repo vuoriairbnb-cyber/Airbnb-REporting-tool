@@ -6,6 +6,7 @@ export type PropertyRow = {
   city: string | null;
   country: string | null;
   currency: string;
+  image_path: string | null;
   default_allocation_method: string | null;
   default_allocation_percentage: number | null;
   is_active: boolean;

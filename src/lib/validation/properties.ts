@@ -17,6 +17,7 @@ export const propertyInputSchema = z.object({
   city: nullableString,
   country: z.string().trim().min(2),
   currency: z.string().trim().min(3).max(3),
+  image_path: nullableString,
   default_allocation_method: nullableString,
   default_allocation_percentage: nullablePercentage,
   is_active: z.coerce.boolean().default(true)

@@ -25,7 +25,13 @@ function statusTone(isActive: boolean) {
   return isActive ? "bg-success/15 text-success" : "bg-muted text-muted-foreground";
 }
 
-export function PropertyList({ properties }: { properties: PropertyRow[] }) {
+export function PropertyList({
+  properties,
+  imageUrls = {}
+}: {
+  properties: PropertyRow[];
+  imageUrls?: Record<string, string>;
+}) {
   if (properties.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-surface/60 p-10 text-center">
@@ -46,15 +52,27 @@ export function PropertyList({ properties }: { properties: PropertyRow[] }) {
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {properties.map((property) => {
         const allocationPercentage = property.default_allocation_percentage ?? 100;
+        const imageUrl = imageUrls[property.id];
 
         return (
           <article
             key={property.id}
             className="overflow-hidden rounded-2xl border border-border bg-card shadow-card"
           >
-            <div className="grid h-32 place-items-center bg-gradient-to-br from-primary/15 via-accent to-warm/10">
-              <Building2 className="h-10 w-10 text-primary" />
-            </div>
+            {imageUrl ? (
+              <div className="h-32 overflow-hidden bg-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imageUrl}
+                  alt={`${property.name} property image`}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="grid h-32 place-items-center bg-gradient-to-br from-primary/15 via-accent to-warm/10">
+                <Building2 className="h-10 w-10 text-primary" />
+              </div>
+            )}
             <div className="p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
