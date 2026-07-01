@@ -7,12 +7,17 @@ import {
   FileArchive,
   FileSpreadsheet,
   FileText,
+  Loader2,
   Sparkles,
   type LucideIcon
 } from "lucide-react";
 import { Pill } from "@/components/app/primitives";
+import { useFeedback } from "@/components/feedback/FeedbackProvider";
+import { FailureState } from "@/components/state/FailureState";
+import { SuccessState } from "@/components/state/SuccessState";
 import { Button } from "@/components/ui/button";
 import { Field, inputClassName, selectClassName } from "@/components/forms/Field";
+import { parseApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 import type { CategoryRow, PropertyRow, ReportType } from "@/server/reporting/types";
 
@@ -87,6 +92,7 @@ export function ReportCreateForm({
   categories: CategoryRow[];
 }) {
   const router = useRouter();
+  const feedback = useFeedback();
   const initialRange = initialDateRange();
   const [selectedType, setSelectedType] = useState<ReportType>("full_reporting_zip");
   const [year, setYear] = useState(String(currentYear()));
@@ -139,6 +145,7 @@ export function ReportCreateForm({
 
     if (!disclaimerAccepted) {
       setError("Accept the disclaimer reminder before generating a report.");
+      feedback.error({ title: "Report generation blocked." });
       return;
     }
 
@@ -156,14 +163,13 @@ export function ReportCreateForm({
     });
     setIsPending(false);
 
-    const body = await response.json().catch(() => null);
-
     if (!response.ok) {
-      setError(body?.error ?? "Could not generate report.");
+      setError(await parseApiError(response, "Could not generate report."));
       return;
     }
 
     setMessage("Report created. Download it when the status changes to ready.");
+    feedback.success({ title: "Report generated." });
     router.refresh();
   }
 
@@ -278,7 +284,11 @@ export function ReportCreateForm({
             </p>
           </div>
           <Button onClick={handleGenerate} disabled={isPending}>
-            <Sparkles className="h-4 w-4" />
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
             {isPending ? "Generating..." : "Generate report"}
           </Button>
         </div>
@@ -323,8 +333,12 @@ export function ReportCreateForm({
         </label>
 
         {error ? (
-          <div className="mt-3 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm">
-            <p className="text-destructive">{error}</p>
+          <div className="mt-3">
+            <FailureState
+              variant="inline"
+              title="Could not generate report"
+              description={error}
+            />
             {error === "Disclaimer acceptance is required before generating reports." ? (
               <Button asChild variant="outline" size="sm" className="mt-3">
                 <Link href="/app/settings">Open settings</Link>
@@ -332,7 +346,11 @@ export function ReportCreateForm({
             ) : null}
           </div>
         ) : null}
-        {message ? <p className="mt-3 text-sm text-success">{message}</p> : null}
+        {message ? (
+          <div className="mt-3">
+            <SuccessState title="Report generated" description={message} />
+          </div>
+        ) : null}
       </section>
     </div>
   );

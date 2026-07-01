@@ -3,8 +3,10 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, FileText, Save, Sparkles } from "lucide-react";
+import { AlertTriangle, FileText, Loader2, Save, Sparkles } from "lucide-react";
 import { Pill } from "@/components/app/primitives";
+import { useFeedback } from "@/components/feedback/FeedbackProvider";
+import { FailureState } from "@/components/state/FailureState";
 import { Button } from "@/components/ui/button";
 import {
   calculateCandidateReportableAmount,
@@ -18,6 +20,7 @@ import {
   textareaClassName
 } from "@/components/forms/Field";
 import { formatCurrency } from "@/lib/format";
+import { parseApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 import type { CategoryRow, PropertyRow, ReceiptRow } from "@/server/reporting/types";
 
@@ -149,6 +152,7 @@ export function ReceiptReviewForm({
   fileUrl: string | null;
 }) {
   const router = useRouter();
+  const feedback = useFeedback();
   const normalized = (receipt.ai_normalized_response ?? {}) as NormalizedReceipt;
   const expense = receipt.expense_entries;
   const sourceDocument = receipt.source_documents;
@@ -235,12 +239,12 @@ export function ReceiptReviewForm({
     setIsPending(false);
 
     if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setError(body?.error ?? "Could not review receipt.");
+      setError(await parseApiError(response, "Could not review receipt."));
       return;
     }
 
-    router.push("/app/receipts");
+    feedback.success({ title: "Receipt review saved." });
+    router.push("/app/receipts?success=receipt-reviewed");
     router.refresh();
   }
 
@@ -257,11 +261,11 @@ export function ReceiptReviewForm({
     setIsReparsing(false);
 
     if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setError(body?.error ?? "Could not run Plus scan.");
+      setError(await parseApiError(response, "Could not run Plus scan."));
       return;
     }
 
+    feedback.success({ title: "Plus scan complete." });
     router.refresh();
   }
 
@@ -359,7 +363,11 @@ export function ReceiptReviewForm({
                 onClick={handleAccurateScan}
                 disabled={isPending || isReparsing}
               >
-                <Sparkles className="h-4 w-4" />
+                {isReparsing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
                 {isReparsing ? "Running Plus scan..." : "Run Plus scan again"}
               </Button>
             </div>
@@ -629,9 +637,19 @@ export function ReceiptReviewForm({
             AI results must be reviewed before saving.
           </p>
 
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          {error ? (
+            <FailureState
+              variant="inline"
+              title="Could not save receipt review"
+              description={error}
+            />
+          ) : null}
           <Button type="submit" disabled={isPending || isMissingLinkedExpense}>
-            <Save className="h-4 w-4" />
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
             {isPending ? "Saving..." : "Save as reviewed expense"}
           </Button>
         </form>

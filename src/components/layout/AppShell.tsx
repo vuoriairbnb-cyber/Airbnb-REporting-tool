@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import type { Route } from "next";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 import {
   Bell,
   Building2,
@@ -14,6 +16,7 @@ import {
   TrendingUp
 } from "lucide-react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { Logo } from "@/components/Logo";
 import type { Dictionary, Locale } from "@/lib/i18n";
@@ -28,6 +31,18 @@ const navItems = [
   { href: "/app/reports", labelKey: "reports", icon: FileText },
   { href: "/app/settings", labelKey: "settings", icon: Settings }
 ] as const;
+
+const successMessages: Record<string, string> = {
+  "property-created": "Property created.",
+  "property-updated": "Property saved.",
+  "income-created": "Income entry created.",
+  "income-updated": "Income entry saved.",
+  "expense-created": "Expense saved.",
+  "expense-updated": "Expense saved.",
+  "receipt-reviewed": "Receipt saved as a reviewed expense.",
+  "report-created": "Report generated.",
+  "settings-saved": "Settings saved."
+};
 
 function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -49,9 +64,28 @@ export function AppShell({
   labels: AppShellLabels;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const feedback = useFeedback();
   const current =
     navItems.find((item) => isActivePath(pathname, item.href)) ?? navItems[0];
   const currentLabel = labels.nav[current.labelKey] ?? current.labelKey;
+
+  useEffect(() => {
+    const successKey = searchParams.get("success");
+    if (!successKey) return;
+
+    feedback.success({
+      title: successMessages[successKey] ?? "Saved."
+    });
+
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("success");
+    const query = next.toString();
+    router.replace((query ? `${pathname}?${query}` : pathname) as Route, {
+      scroll: false
+    });
+  }, [feedback, pathname, router, searchParams]);
 
   return (
     <div className="min-h-screen bg-surface/40">

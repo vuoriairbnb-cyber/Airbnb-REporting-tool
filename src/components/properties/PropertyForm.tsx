@@ -2,8 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
+import { FailureState } from "@/components/state/FailureState";
 import { Button } from "@/components/ui/button";
 import { Field, inputClassName, selectClassName } from "@/components/forms/Field";
+import { parseApiError } from "@/lib/api/client";
 import type { PropertyRow } from "@/server/reporting/types";
 
 export function PropertyForm({ property }: { property?: PropertyRow }) {
@@ -40,12 +43,13 @@ export function PropertyForm({ property }: { property?: PropertyRow }) {
     setIsPending(false);
 
     if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setError(body?.error ?? "Could not save property.");
+      setError(await parseApiError(response, "Could not save property."));
       return;
     }
 
-    router.push("/app/properties");
+    router.push(
+      `/app/properties?success=${property ? "property-updated" : "property-created"}`
+    );
     router.refresh();
   }
 
@@ -125,9 +129,16 @@ export function PropertyForm({ property }: { property?: PropertyRow }) {
           Active
         </label>
       </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? (
+        <FailureState
+          variant="inline"
+          title="Could not save property"
+          description={error}
+        />
+      ) : null}
       <Button type="submit" disabled={isPending}>
-        {property ? "Save property" : "Create property"}
+        {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+        {isPending ? "Saving..." : property ? "Save property" : "Create property"}
       </Button>
     </form>
   );

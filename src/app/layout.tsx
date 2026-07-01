@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { FeedbackProvider } from "@/components/feedback/FeedbackProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -25,7 +26,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <FeedbackProvider>{children}</FeedbackProvider>
+      </body>
     </html>
   );
 }

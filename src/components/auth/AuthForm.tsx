@@ -4,8 +4,12 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
+import { FailureState } from "@/components/state/FailureState";
+import { SuccessState } from "@/components/state/SuccessState";
 import { Button } from "@/components/ui/button";
 import type { Dictionary, Locale } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
@@ -31,6 +35,7 @@ export function AuthForm({
   };
 }) {
   const router = useRouter();
+  const feedback = useFeedback();
   const isLogin = mode === "login";
   const nextPath = getSafeNextPath(next);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +67,7 @@ export function AuthForm({
         return;
       }
 
+      feedback.success({ title: "Logged in." });
       router.replace(nextPath as Route);
       router.refresh();
       return;
@@ -87,6 +93,7 @@ export function AuthForm({
     }
 
     if (data.session) {
+      feedback.success({ title: labels.auth.approvalPending });
       router.replace("/pending-approval" as Route);
       router.refresh();
       return;
@@ -145,18 +152,19 @@ export function AuthForm({
             </Field>
 
             {error ? (
-              <div className="rounded-xl border border-destructive/25 bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
-              </div>
+              <FailureState
+                variant="inline"
+                title={isLogin ? "Login failed" : "Signup failed"}
+                description={error}
+              />
             ) : null}
 
             {notice ? (
-              <div className="rounded-xl border border-primary/20 bg-primary/10 p-3 text-sm leading-6 text-primary">
-                {notice}
-              </div>
+              <SuccessState title="Account created" description={notice} />
             ) : null}
 
             <Button className="w-full" size="lg" type="submit" disabled={isPending}>
+              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {isPending
                 ? isLogin
                   ? "Logging in..."

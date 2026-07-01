@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { ExternalLink, Loader2 } from "lucide-react";
+import { FailureState } from "@/components/state/FailureState";
 import { Button } from "@/components/ui/button";
+import { parseApiError } from "@/lib/api/client";
 import type { ButtonProps } from "@/components/ui/button";
 
 type BillingPortalButtonProps = {
@@ -29,11 +31,13 @@ export function BillingPortalButton({
       const response = await fetch("/api/stripe/create-portal-session", {
         method: "POST"
       });
-      const body = await response.json().catch(() => null);
 
-      if (!response.ok || !body?.data?.url) {
-        throw new Error(body?.error ?? "Could not open billing portal.");
+      if (!response.ok) {
+        throw new Error(await parseApiError(response, "Could not open billing portal."));
       }
+
+      const body = await response.json().catch(() => null);
+      if (!body?.data?.url) throw new Error("Could not open billing portal.");
 
       window.location.assign(body.data.url);
     } catch (portalError) {
@@ -61,7 +65,13 @@ export function BillingPortalButton({
         )}
         {isPending ? "Opening portal..." : label}
       </Button>
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {error ? (
+        <FailureState
+          variant="inline"
+          title="Could not open billing portal"
+          description={error}
+        />
+      ) : null}
     </div>
   );
 }

@@ -2,8 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { Pill } from "@/components/app/primitives";
+import { useFeedback } from "@/components/feedback/FeedbackProvider";
+import { FailureState } from "@/components/state/FailureState";
 import { Button } from "@/components/ui/button";
+import { parseApiError } from "@/lib/api/client";
 import { DISCLAIMER_TEXT } from "@/lib/constants/disclaimer";
 
 function formatAcceptedDate(value: string) {
@@ -20,6 +24,7 @@ export function DisclaimerStatusControl({
   initialAcceptedAt: string | null;
 }) {
   const router = useRouter();
+  const feedback = useFeedback();
   const [acceptedAt, setAcceptedAt] = useState(initialAcceptedAt);
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
@@ -36,13 +41,13 @@ export function DisclaimerStatusControl({
     setIsPending(false);
 
     if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setError(body?.error ?? "Could not update disclaimer status.");
+      setError(await parseApiError(response, "Could not update disclaimer status."));
       return;
     }
 
     const body = await response.json();
     setAcceptedAt(body.data.disclaimerAcceptedAt);
+    feedback.success({ title: "Disclaimer accepted." });
     router.refresh();
   }
 
@@ -68,11 +73,20 @@ export function DisclaimerStatusControl({
           <Pill tone="bg-primary/10 text-primary">Accepted</Pill>
         ) : (
           <Button size="sm" onClick={acceptDisclaimer} disabled={isPending}>
+            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {isPending ? "Saving..." : "Accept disclaimer"}
           </Button>
         )}
       </div>
-      {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
+      {error ? (
+        <div className="mt-3">
+          <FailureState
+            variant="inline"
+            title="Could not update disclaimer"
+            description={error}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

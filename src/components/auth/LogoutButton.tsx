@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { Loader2, LogOut } from "lucide-react";
+import { useFeedback } from "@/components/feedback/FeedbackProvider";
+import { FailureState } from "@/components/state/FailureState";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
@@ -26,6 +28,7 @@ export function LogoutButton({
   };
 }) {
   const router = useRouter();
+  const feedback = useFeedback();
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,10 +55,13 @@ export function LogoutButton({
     setIsPending(false);
 
     if (browserError || serverError) {
-      setError(serverError?.error ?? browserError?.message ?? labels.error);
+      const message = serverError?.error ?? browserError?.message ?? labels.error;
+      setError(message);
+      feedback.error({ title: labels.error, description: message });
       return;
     }
 
+    feedback.success({ title: labels.logout });
     router.replace("/login");
     router.refresh();
   }
@@ -70,10 +76,16 @@ export function LogoutButton({
         onClick={handleLogout}
         disabled={isPending}
       >
-        <LogOut className="h-4 w-4" />
+        {isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <LogOut className="h-4 w-4" />
+        )}
         {isPending ? labels.loggingOut : labels.logout}
       </Button>
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {error ? (
+        <FailureState variant="inline" title={labels.error} description={error} />
+      ) : null}
     </div>
   );
 }

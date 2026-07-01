@@ -2,9 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, CheckCircle2, ShieldAlert, Sparkles } from "lucide-react";
+import { Building2, CheckCircle2, Loader2, ShieldAlert, Sparkles } from "lucide-react";
+import { useFeedback } from "@/components/feedback/FeedbackProvider";
+import { FailureState } from "@/components/state/FailureState";
 import { Button } from "@/components/ui/button";
 import { Field, inputClassName } from "@/components/forms/Field";
+import { parseApiError } from "@/lib/api/client";
 import type { OnboardingStatus } from "@/server/reporting/onboarding";
 
 const DISCLAIMER_TEXT =
@@ -15,6 +18,7 @@ const AI_CONSENT_TEXT =
 
 export function OnboardingForm({ status }: { status: OnboardingStatus }) {
   const router = useRouter();
+  const feedback = useFeedback();
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
   const needsProperty = status.propertyCount === 0;
@@ -52,11 +56,11 @@ export function OnboardingForm({ status }: { status: OnboardingStatus }) {
     setIsPending(false);
 
     if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setError(body?.error ?? "Could not complete onboarding.");
+      setError(await parseApiError(response, "Could not complete onboarding."));
       return;
     }
 
+    feedback.success({ title: "Setup complete." });
     router.replace("/app/dashboard");
     router.refresh();
   }
@@ -192,12 +196,15 @@ export function OnboardingForm({ status }: { status: OnboardingStatus }) {
         </section>
 
         {error ? (
-          <div className="rounded-xl border border-destructive/25 bg-destructive/10 p-3 text-sm text-destructive">
-            {error}
-          </div>
+          <FailureState
+            variant="inline"
+            title="Could not finish setup"
+            description={error}
+          />
         ) : null}
 
         <Button type="submit" size="lg" disabled={isPending}>
+          {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
           {isPending ? "Finishing setup..." : "Finish setup"}
         </Button>
       </form>

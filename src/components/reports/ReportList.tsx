@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { Pill } from "@/components/app/primitives";
+import { useFeedback } from "@/components/feedback/FeedbackProvider";
+import { FailureState } from "@/components/state/FailureState";
 import { Button } from "@/components/ui/button";
+import { parseApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 import type { ReportRow } from "@/server/reporting/types";
 
@@ -47,6 +50,7 @@ function formatTimestamp(value: string) {
 }
 
 export function ReportList({ reports }: { reports: ReportRow[] }) {
+  const feedback = useFeedback();
   const [pendingReportId, setPendingReportId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,16 +60,17 @@ export function ReportList({ reports }: { reports: ReportRow[] }) {
 
     try {
       const response = await fetch(`/api/reports/${reportId}`);
-      const body = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(body?.error ?? "Could not load report download.");
+        throw new Error(await parseApiError(response, "Could not load report download."));
       }
 
+      const body = await response.json().catch(() => null);
       if (body?.data?.status !== "ready" || !body?.data?.downloadUrl) {
         throw new Error(body?.data?.error ?? "Report is not ready yet.");
       }
 
+      feedback.success({ title: "Download opened." });
       window.open(body.data.downloadUrl, "_blank", "noopener,noreferrer");
     } catch (downloadError) {
       setError(
@@ -133,7 +138,13 @@ export function ReportList({ reports }: { reports: ReportRow[] }) {
         </div>
       </div>
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? (
+        <FailureState
+          variant="inline"
+          title="Could not download report"
+          description={error}
+        />
+      ) : null}
     </div>
   );
 }

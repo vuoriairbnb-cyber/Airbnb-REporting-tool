@@ -3,11 +3,15 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { UploadCloud } from "lucide-react";
+import { Loader2, UploadCloud } from "lucide-react";
+import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { Button } from "@/components/ui/button";
 import { Field, selectClassName } from "@/components/forms/Field";
 import { ReceiptImagePreprocessStep } from "@/components/receipts/ReceiptImagePreprocessStep";
+import { FailureState } from "@/components/state/FailureState";
+import { LoadingState } from "@/components/state/LoadingState";
 import type { Dictionary } from "@/lib/i18n";
+import { parseApiError } from "@/lib/api/client";
 import { isProcessableReceiptImage } from "@/lib/receipts/image-preprocessing";
 import { createClient } from "@/lib/supabase/client";
 import type { PropertyRow } from "@/server/reporting/types";
@@ -24,6 +28,7 @@ export function ReceiptUploadForm({
   };
 }) {
   const router = useRouter();
+  const feedback = useFeedback();
   const [file, setFile] = useState<File | null>(null);
   const [propertyId, setPropertyId] = useState("");
   const [scanMode, setScanMode] = useState<"standard" | "plus" | "pro">("standard");
@@ -81,8 +86,7 @@ export function ReceiptUploadForm({
     });
 
     if (!createResponse.ok) {
-      const body = await createResponse.json().catch(() => null);
-      setError(body?.error ?? "Could not prepare upload.");
+      setError(await parseApiError(createResponse, "Could not prepare upload."));
       setIsPending(false);
       return;
     }
@@ -124,8 +128,7 @@ export function ReceiptUploadForm({
     setIsPending(false);
 
     if (!parseResponse.ok) {
-      const body = await parseResponse.json().catch(() => null);
-      const message = body?.error ?? "Could not parse receipt.";
+      const message = await parseApiError(parseResponse, "Could not parse receipt.");
       setNeedsAiConsent(
         message === "AI processing consent is required before parsing receipts."
       );
@@ -134,6 +137,7 @@ export function ReceiptUploadForm({
     }
 
     const parsed = await parseResponse.json();
+    feedback.success({ title: "Receipt scanned." });
     router.push(`/app/receipts/${parsed.data.receiptId}/review`);
     router.refresh();
   }
@@ -238,8 +242,12 @@ export function ReceiptUploadForm({
       ) : null}
 
       {error ? (
-        <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm">
-          <p className="text-destructive">{error}</p>
+        <div className="space-y-3">
+          <FailureState
+            variant="inline"
+            title="Could not scan receipt"
+            description={error}
+          />
           <div className="mt-3 flex flex-wrap gap-2">
             {needsAiConsent ? (
               <Button asChild size="sm">
@@ -252,8 +260,16 @@ export function ReceiptUploadForm({
           </div>
         </div>
       ) : null}
+      {isPending ? (
+        <LoadingState
+          variant="card"
+          label={labels.receipts.uploadingAndScanning}
+          description="Uploading the receipt, reading the file and preparing receipt review."
+        />
+      ) : null}
       {!file || !isProcessableReceiptImage(file) ? (
         <Button type="submit" disabled={isPending}>
+          {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
           {isPending
             ? labels.receipts.uploadingAndScanning
             : labels.receipts.uploadAndScan}

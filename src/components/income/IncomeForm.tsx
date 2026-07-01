@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
+import { FailureState } from "@/components/state/FailureState";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -9,6 +11,7 @@ import {
   selectClassName,
   textareaClassName
 } from "@/components/forms/Field";
+import { parseApiError } from "@/lib/api/client";
 import type { IncomeEntryRow, PropertyRow } from "@/server/reporting/types";
 
 export function IncomeForm({
@@ -49,12 +52,11 @@ export function IncomeForm({
     setIsPending(false);
 
     if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setError(body?.error ?? "Could not save income.");
+      setError(await parseApiError(response, "Could not save income."));
       return;
     }
 
-    router.push("/app/income");
+    router.push(`/app/income?success=${income ? "income-updated" : "income-created"}`);
     router.refresh();
   }
 
@@ -147,9 +149,16 @@ export function IncomeForm({
           defaultValue={income?.notes ?? ""}
         />
       </Field>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? (
+        <FailureState
+          variant="inline"
+          title="Could not save income"
+          description={error}
+        />
+      ) : null}
       <Button type="submit" disabled={isPending}>
-        {income ? "Save income" : "Create income"}
+        {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+        {isPending ? "Saving..." : income ? "Save income" : "Create income"}
       </Button>
     </form>
   );

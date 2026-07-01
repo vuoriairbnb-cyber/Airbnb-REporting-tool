@@ -4,9 +4,19 @@ import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { AlertTriangle, FileText, ReceiptText, Sparkles, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  FileText,
+  Loader2,
+  ReceiptText,
+  Sparkles,
+  Trash2
+} from "lucide-react";
 import { Pill } from "@/components/app/primitives";
+import { useFeedback } from "@/components/feedback/FeedbackProvider";
+import { FailureState } from "@/components/state/FailureState";
 import { Button } from "@/components/ui/button";
+import { parseApiError } from "@/lib/api/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { ReceiptRow, ReceiptStatus } from "@/server/reporting/types";
 
@@ -57,6 +67,7 @@ function formatReceiptDate(expenseDate?: string | null, uploadedAt?: string | nu
 
 export function ReceiptList({ receipts }: { receipts: ReceiptRow[] }) {
   const router = useRouter();
+  const feedback = useFeedback();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -114,16 +125,13 @@ export function ReceiptList({ receipts }: { receipts: ReceiptRow[] }) {
         });
 
         if (!response.ok) {
-          const body = (await response.json().catch(() => null)) as {
-            error?: string;
-          } | null;
-
-          setError(body?.error ?? "Could not delete selected receipts.");
+          setError(await parseApiError(response, "Could not delete selected receipts."));
           return;
         }
       }
 
       setSelectedIds([]);
+      feedback.success({ title: "Receipt deleted." });
       router.refresh();
     });
   }
@@ -150,16 +158,22 @@ export function ReceiptList({ receipts }: { receipts: ReceiptRow[] }) {
             disabled={!selectedCount || isPending}
             onClick={deleteSelected}
           >
-            <Trash2 className="h-4 w-4" />
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4" />
+            )}
             {isPending ? "Deleting..." : "Delete"}
           </Button>
         </div>
       </div>
 
       {error ? (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
-        </div>
+        <FailureState
+          variant="inline"
+          title="Could not delete receipt"
+          description={error}
+        />
       ) : null}
 
       <div className="grid gap-3 md:grid-cols-2">

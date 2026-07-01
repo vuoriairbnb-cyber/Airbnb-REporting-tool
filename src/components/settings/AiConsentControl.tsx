@@ -2,8 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { Pill } from "@/components/app/primitives";
+import { useFeedback } from "@/components/feedback/FeedbackProvider";
+import { FailureState } from "@/components/state/FailureState";
 import { Button } from "@/components/ui/button";
+import { parseApiError } from "@/lib/api/client";
 
 function formatConsentDate(value: string) {
   return new Intl.DateTimeFormat("en", {
@@ -19,6 +23,7 @@ export function AiConsentControl({
   initialConsentAt: string | null;
 }) {
   const router = useRouter();
+  const feedback = useFeedback();
   const [consentAt, setConsentAt] = useState(initialConsentAt);
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
@@ -35,13 +40,13 @@ export function AiConsentControl({
     setIsPending(false);
 
     if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setError(body?.error ?? "Could not enable AI processing consent.");
+      setError(await parseApiError(response, "Could not enable AI processing consent."));
       return;
     }
 
     const body = await response.json();
     setConsentAt(body.data.aiProcessingConsentAt);
+    feedback.success({ title: "AI processing enabled." });
     router.refresh();
   }
 
@@ -65,12 +70,21 @@ export function AiConsentControl({
             <Pill tone="bg-primary/10 text-primary">Enabled</Pill>
           ) : (
             <Button size="sm" onClick={enableConsent} disabled={isPending}>
+              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {isPending ? "Enabling..." : "Enable AI processing"}
             </Button>
           )}
         </div>
       </div>
-      {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
+      {error ? (
+        <div className="mt-3">
+          <FailureState
+            variant="inline"
+            title="Could not enable AI processing"
+            description={error}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

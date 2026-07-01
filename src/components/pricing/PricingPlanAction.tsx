@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
+import { FailureState } from "@/components/state/FailureState";
 import { Button } from "@/components/ui/button";
+import { parseApiError } from "@/lib/api/client";
 
 type PricingPlanActionProps = {
   planId: "free" | "starter" | "pro";
@@ -73,11 +75,12 @@ export function PricingPlanAction({
           plan: planId
         })
       });
-      const body = await response.json().catch(() => null);
-
-      if (!response.ok || !body?.data?.url) {
-        throw new Error(body?.error ?? "Could not start checkout.");
+      if (!response.ok) {
+        throw new Error(await parseApiError(response, "Could not start checkout."));
       }
+
+      const body = await response.json().catch(() => null);
+      if (!body?.data?.url) throw new Error("Could not start checkout.");
 
       window.location.assign(body.data.url);
     } catch (checkoutError) {
@@ -101,7 +104,13 @@ export function PricingPlanAction({
         {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
         {isPending ? "Opening checkout..." : `Choose ${planName}`}
       </Button>
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {error ? (
+        <FailureState
+          variant="inline"
+          title="Could not start checkout"
+          description={error}
+        />
+      ) : null}
     </div>
   );
 }

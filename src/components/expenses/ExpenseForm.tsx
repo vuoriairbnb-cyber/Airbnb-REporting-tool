@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+import { FailureState } from "@/components/state/FailureState";
 import { Button } from "@/components/ui/button";
 import {
   calculateCandidateReportableAmount,
@@ -15,6 +17,7 @@ import {
   textareaClassName
 } from "@/components/forms/Field";
 import { formatCurrency } from "@/lib/format";
+import { parseApiError } from "@/lib/api/client";
 import type { CategoryRow, ExpenseEntryRow, PropertyRow } from "@/server/reporting/types";
 
 export function ExpenseForm({
@@ -79,12 +82,13 @@ export function ExpenseForm({
     setIsPending(false);
 
     if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setError(body?.error ?? "Could not save expense.");
+      setError(await parseApiError(response, "Could not save expense."));
       return;
     }
 
-    router.push("/app/expenses");
+    router.push(
+      `/app/expenses?success=${expense ? "expense-updated" : "expense-created"}`
+    );
     router.refresh();
   }
 
@@ -197,9 +201,16 @@ export function ExpenseForm({
           defaultValue={expense?.notes ?? ""}
         />
       </Field>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? (
+        <FailureState
+          variant="inline"
+          title="Could not save expense"
+          description={error}
+        />
+      ) : null}
       <Button type="submit" disabled={isPending}>
-        {expense ? "Save expense" : "Create expense"}
+        {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+        {isPending ? "Saving..." : expense ? "Save expense" : "Create expense"}
       </Button>
     </form>
   );
