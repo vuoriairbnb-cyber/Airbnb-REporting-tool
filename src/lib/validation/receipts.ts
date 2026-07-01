@@ -84,6 +84,7 @@ export const reviewReceiptSchema = z.object({
         ai_suggested_category_id: nullableUuid.optional(),
         ai_category_confidence: z.coerce.number().min(0).max(1).nullable().optional(),
         user_selected_category_id: nullableUuid.optional(),
+        is_hidden: z.coerce.boolean().optional(),
         allocation_percentage: z.coerce.number().min(0).max(100)
       })
     )

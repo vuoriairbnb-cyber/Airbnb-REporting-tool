@@ -3,10 +3,20 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, FileText, Loader2, Save, Sparkles } from "lucide-react";
+import {
+  AlertTriangle,
+  Eye,
+  EyeOff,
+  FileText,
+  Loader2,
+  Save,
+  Sparkles
+} from "lucide-react";
 import { Pill } from "@/components/app/primitives";
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { FailureState } from "@/components/state/FailureState";
+import { LoadingState } from "@/components/state/LoadingState";
+import { SuccessState } from "@/components/state/SuccessState";
 import { Button } from "@/components/ui/button";
 import {
   calculateCandidateReportableAmount,
@@ -52,6 +62,7 @@ type ReviewLineItem = {
   ai_suggested_category_id: string | null;
   ai_category_confidence: number | null;
   user_selected_category_id: string | null;
+  is_hidden: boolean;
   allocation_percentage: number;
   candidate_reportable_amount: number | null;
 };
@@ -131,6 +142,7 @@ function readLineItems(value: unknown): ReviewLineItem[] {
       user_selected_category_id:
         stringOrNull(record.user_selected_category_id) ??
         stringOrNull(record.ai_suggested_category_id),
+      is_hidden: Boolean(record.is_hidden),
       allocation_percentage: allocationPercentage,
       candidate_reportable_amount:
         lineAmount === null
@@ -160,6 +172,7 @@ export function ReceiptReviewForm({
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
   const [isReparsing, setIsReparsing] = useState(false);
+  const [showSavedState, setShowSavedState] = useState(false);
   const [totalAmount, setTotalAmount] = useState(
     String(expense?.total_amount ?? normalized.total_amount ?? "")
   );
@@ -189,6 +202,19 @@ export function ReceiptReviewForm({
       calculateCandidateReportableAmount(Number(totalAmount || 0), normalizedPercentage),
     [totalAmount, normalizedPercentage]
   );
+  const visibleLineItems = useMemo(
+    () => lineItems.filter((item) => !item.is_hidden),
+    [lineItems]
+  );
+  const hiddenLineItemCount = lineItems.length - visibleLineItems.length;
+  const visibleLineItemTotal = useMemo(
+    () =>
+      visibleLineItems.reduce(
+        (sum, item) => sum + Number(item.line_amount ?? item.amount ?? 0),
+        0
+      ),
+    [visibleLineItems]
+  );
 
   function updateLineItem(index: number, updates: Partial<ReviewLineItem>) {
     setLineItems((current) =>
@@ -217,6 +243,7 @@ export function ReceiptReviewForm({
     event.preventDefault();
     setError(null);
     setIsPending(true);
+    setShowSavedState(false);
 
     const formData = new FormData(event.currentTarget);
     const response = await fetch(`/api/receipts/${receipt.id}/review`, {
@@ -236,16 +263,16 @@ export function ReceiptReviewForm({
       })
     });
 
-    setIsPending(false);
-
     if (!response.ok) {
+      setIsPending(false);
       setError(await parseApiError(response, "Could not review receipt."));
       return;
     }
 
+    setShowSavedState(true);
     feedback.success({ title: "Receipt review saved." });
+    await new Promise((resolve) => window.setTimeout(resolve, 500));
     router.push("/app/receipts?success=receipt-reviewed");
-    router.refresh();
   }
 
   async function handleAccurateScan() {
@@ -454,16 +481,91 @@ export function ReceiptReviewForm({
               </div>
 
               <div className="mt-4 space-y-3">
+                <div className="rounded-xl border border-border bg-surface/50 p-3 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="font-medium">
+                        {visibleLineItems.length} of {lineItems.length} line items
+                        included
+                      </p>
+                      <p className="text-muted-foreground">
+                        Hidden items are excluded from the reviewed expense. Update the
+                        total amount if you do not want personal purchases included.
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs uppercase text-muted-foreground">
+                        Visible line item total
+                      </p>
+                      <p className="font-medium">
+                        {formatCurrency(visibleLineItemTotal, currencyValue)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setTotalAmount(String(visibleLineItemTotal))}
+                      disabled={isPending}
+                    >
+                      Use visible items total
+                    </Button>
+                    {hiddenLineItemCount > 0 ? (
+                      <p className="self-center text-xs text-muted-foreground">
+                        {hiddenLineItemCount} hidden{" "}
+                        {hiddenLineItemCount === 1 ? "item" : "items"}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-3">
                 {lineItems.map((item, index) => (
                   <div
                     key={item.id}
-                    className="rounded-xl border border-border bg-surface/50 p-3"
+                    className={cn(
+                      "rounded-xl border border-border bg-surface/50 p-3",
+                      item.is_hidden && "border-dashed opacity-75"
+                    )}
                   >
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground">
+                          {item.description ?? `Line item ${index + 1}`}
+                        </span>
+                        {item.is_hidden ? (
+                          <Pill tone="bg-muted text-muted-foreground">
+                            Hidden from reviewed expense
+                          </Pill>
+                        ) : null}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          updateLineItem(index, { is_hidden: !item.is_hidden })
+                        }
+                        disabled={isPending}
+                      >
+                        {item.is_hidden ? (
+                          <Eye className="h-4 w-4" />
+                        ) : (
+                          <EyeOff className="h-4 w-4" />
+                        )}
+                        {item.is_hidden ? "Show again" : "Hide item"}
+                      </Button>
+                    </div>
+
                     <div className="grid gap-3 md:grid-cols-[minmax(0,1.4fr)_0.7fr_0.9fr_0.7fr_0.9fr]">
                       <Field label="Description">
                         <input
                           className={reviewInputClassName}
                           value={item.description ?? ""}
+                          disabled={item.is_hidden || isPending}
                           onChange={(event) =>
                             updateLineItem(index, {
                               description: event.target.value || null
@@ -478,6 +580,7 @@ export function ReceiptReviewForm({
                           min="0"
                           step="0.01"
                           value={item.line_amount ?? ""}
+                          disabled={item.is_hidden || isPending}
                           onChange={(event) =>
                             updateLineItem(index, {
                               line_amount: numberOrNull(event.target.value),
@@ -490,6 +593,7 @@ export function ReceiptReviewForm({
                         <select
                           className={reviewSelectClassName}
                           value={item.user_selected_category_id ?? ""}
+                          disabled={item.is_hidden || isPending}
                           onChange={(event) =>
                             updateLineItem(index, {
                               user_selected_category_id: event.target.value || null
@@ -512,6 +616,7 @@ export function ReceiptReviewForm({
                           max="100"
                           step="0.01"
                           value={item.allocation_percentage}
+                          disabled={item.is_hidden || isPending}
                           onChange={(event) =>
                             updateLineItem(index, {
                               allocation_percentage: Number(event.target.value || 0)
@@ -532,6 +637,11 @@ export function ReceiptReviewForm({
                       </div>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      {item.is_hidden ? (
+                        <span>
+                          This item will not be included in the reviewed expense.
+                        </span>
+                      ) : null}
                       {item.ai_suggested_category_name ? (
                         <span>Suggested by AI: {item.ai_suggested_category_name}</span>
                       ) : (
@@ -631,6 +741,21 @@ export function ReceiptReviewForm({
                 </div>
               </div>
             </div>
+          ) : null}
+
+          {isPending ? (
+            <LoadingState
+              variant="card"
+              label="Saving reviewed receipt"
+              description="We are saving the receipt, updating the linked expense and preparing the receipts list."
+            />
+          ) : null}
+
+          {showSavedState ? (
+            <SuccessState
+              title="Receipt saved"
+              description="The reviewed expense was saved successfully. Returning to the receipts list."
+            />
           ) : null}
 
           <p className="text-xs text-muted-foreground">

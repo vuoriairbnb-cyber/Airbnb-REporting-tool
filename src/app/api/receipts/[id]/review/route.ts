@@ -69,6 +69,10 @@ export async function POST(
   const lineItems = [];
 
   for (const item of parsed.data.line_items ?? []) {
+    if (item.is_hidden) {
+      continue;
+    }
+
     const selectedCategoryId =
       typeof item.user_selected_category_id === "string"
         ? item.user_selected_category_id
@@ -98,6 +102,7 @@ export async function POST(
       amount: lineAmount,
       ai_suggested_category_id: safeSuggestedCategoryId,
       user_selected_category_id: selectedCategoryId,
+      is_hidden: false,
       allocation_percentage: itemAllocationPercentage,
       candidate_reportable_amount:
         lineAmount === null
