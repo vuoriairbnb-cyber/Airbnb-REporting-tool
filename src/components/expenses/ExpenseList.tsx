@@ -1,8 +1,15 @@
+"use client";
+
 import Link from "next/link";
-import { Receipt } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { AlertTriangle, Loader2, Receipt, Trash2 } from "lucide-react";
 import { Pill } from "@/components/app/primitives";
+import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { Button } from "@/components/ui/button";
 import { RecordActions } from "@/components/reporting/RecordActions";
+import { FailureState } from "@/components/state/FailureState";
+import { parseApiError } from "@/lib/api/client";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { ExpenseEntryRow, ExpenseStatus } from "@/server/reporting/types";
 
@@ -72,6 +79,12 @@ function AllocationChip({ percentage }: { percentage: number }) {
 }
 
 export function ExpenseList({ entries }: { entries: ExpenseEntryRow[] }) {
+  const router = useRouter();
+  const feedback = useFeedback();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   if (entries.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-surface/60 p-10 text-center">
@@ -88,12 +101,121 @@ export function ExpenseList({ entries }: { entries: ExpenseEntryRow[] }) {
     );
   }
 
+  const selectedCount = selectedIds.length;
+  const allSelected = entries.length > 0 && selectedIds.length === entries.length;
+
+  function toggleSelected(id: string) {
+    setSelectedIds((current) =>
+      current.includes(id)
+        ? current.filter((selectedId) => selectedId !== id)
+        : [...current, id]
+    );
+  }
+
+  function toggleAll() {
+    setSelectedIds(allSelected ? [] : entries.map((entry) => entry.id));
+  }
+
+  async function deleteSelected() {
+    if (selectedIds.length === 0) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${selectedIds.length} expense ${
+        selectedIds.length === 1 ? "entry" : "entries"
+      }? This cannot be undone. Receipt records stay stored, but their linked expense may be cleared.`
+    );
+
+    if (!confirmed) return;
+
+    setError(null);
+    setIsDeleting(true);
+
+    try {
+      for (const id of selectedIds) {
+        const response = await fetch(`/api/expenses/${id}`, { method: "DELETE" });
+
+        if (!response.ok) {
+          throw new Error(await parseApiError(response, "Could not delete expense."));
+        }
+      }
+
+      feedback.success({
+        title: "Expenses deleted.",
+        description: `${selectedIds.length} expense ${
+          selectedIds.length === 1 ? "entry was" : "entries were"
+        } deleted.`
+      });
+      setSelectedIds([]);
+      router.refresh();
+    } catch (deleteError) {
+      const message =
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Could not delete selected expense entries.";
+      setError(message);
+      feedback.error({ title: "Could not delete expenses.", description: message });
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   return (
     <>
+      {selectedCount > 0 ? (
+        <div className="rounded-2xl border border-warning/30 bg-warning/10 p-4 shadow-card">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3 text-sm">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+              <div>
+                <p className="font-medium">{selectedCount} selected</p>
+                <p className="text-muted-foreground">
+                  Deleting selected expenses removes them from reporting preparation
+                  records. Linked receipts remain stored.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setSelectedIds([])}
+                disabled={isDeleting}
+              >
+                Clear selection
+              </Button>
+              <Button type="button" onClick={deleteSelected} disabled={isDeleting}>
+                {isDeleting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                {isDeleting ? "Deleting..." : "Delete selected"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {error ? (
+        <FailureState
+          variant="inline"
+          title="Could not delete selected expenses"
+          description={error}
+        />
+      ) : null}
+
       <div className="hidden overflow-hidden rounded-2xl border border-border bg-card md:block">
         <table className="w-full text-sm">
           <thead className="bg-surface/60 text-left text-xs uppercase tracking-normal text-muted-foreground">
             <tr>
+              <th className="px-4 py-3">
+                <input
+                  type="checkbox"
+                  aria-label="Select all expense entries"
+                  checked={allSelected}
+                  onChange={toggleAll}
+                />
+              </th>
               {[
                 "Date",
                 "Vendor",
@@ -114,6 +236,14 @@ export function ExpenseList({ entries }: { entries: ExpenseEntryRow[] }) {
           <tbody className="divide-y divide-border">
             {entries.map((entry) => (
               <tr key={entry.id} className="hover:bg-muted/40">
+                <td className="px-4 py-3">
+                  <input
+                    type="checkbox"
+                    aria-label={`Select expense ${entry.vendor ?? entry.id}`}
+                    checked={selectedIds.includes(entry.id)}
+                    onChange={() => toggleSelected(entry.id)}
+                  />
+                </td>
                 <td className="px-4 py-3">{formatDate(entry.date)}</td>
                 <td className="px-4 py-3 font-medium">
                   {entry.vendor ?? "Unnamed expense"}
@@ -148,7 +278,7 @@ export function ExpenseList({ entries }: { entries: ExpenseEntryRow[] }) {
                     </Button>
                     <RecordActions
                       endpoint={`/api/expenses/${entry.id}`}
-                      label="Archive"
+                      label="Delete"
                     />
                   </div>
                 </td>
@@ -164,6 +294,14 @@ export function ExpenseList({ entries }: { entries: ExpenseEntryRow[] }) {
             key={entry.id}
             className="rounded-2xl border border-border bg-card p-4 shadow-card"
           >
+            <label className="mb-3 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(entry.id)}
+                onChange={() => toggleSelected(entry.id)}
+              />
+              Select expense entry
+            </label>
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
               <div className="min-w-0">
                 <p className="truncate font-medium">
@@ -212,7 +350,7 @@ export function ExpenseList({ entries }: { entries: ExpenseEntryRow[] }) {
               <Button asChild variant="outline" size="sm">
                 <Link href={`/app/expenses/${entry.id}`}>Manage</Link>
               </Button>
-              <RecordActions endpoint={`/api/expenses/${entry.id}`} label="Archive" />
+              <RecordActions endpoint={`/api/expenses/${entry.id}`} label="Delete" />
             </div>
           </div>
         ))}

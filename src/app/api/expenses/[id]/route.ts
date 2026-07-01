@@ -125,18 +125,16 @@ export async function DELETE(_request: Request, context: Context) {
   const userId = approval.userId;
 
   const supabase = (await createClient()) as unknown as SupabaseReportingClient;
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("expense_entries")
-    .update({ status: "archived" })
+    .delete()
     .eq("id", id)
-    .eq("user_id", userId)
-    .select("*")
-    .single();
+    .eq("user_id", userId);
 
   if (error) {
-    logServerError("expenses.archive", error);
-    return apiError("Could not archive expense.", 500);
+    logServerError("expenses.delete", error);
+    return apiError("Could not delete expense.", 500);
   }
 
-  return NextResponse.json({ data });
+  return NextResponse.json({ data: { id } });
 }

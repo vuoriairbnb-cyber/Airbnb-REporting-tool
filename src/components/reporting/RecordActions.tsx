@@ -16,6 +16,15 @@ export function RecordActions({
   const [isPending, setIsPending] = useState(false);
 
   async function handleDelete() {
+    const action = label.toLowerCase();
+    const confirmed = window.confirm(
+      `Are you sure you want to ${action} this record? ${
+        label === "Delete" ? "This cannot be undone." : ""
+      }`
+    );
+
+    if (!confirmed) return;
+
     setIsPending(true);
 
     try {
